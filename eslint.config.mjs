@@ -122,8 +122,8 @@ export default defineConfig([
     // Ignore build output directories, coverage, third-party/vendored code,
     // and the RPG Maker MV engine + plugin files (they are not authored here).
     ignores: [
-      "dist/",
-      "build/",
+      "**/dist/**",
+      "**/build/**",
       "coverage/",
       "node_modules/",
       ".next/",

@@ -9,9 +9,9 @@
     "lint": "eslint src --ext .ts"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "@types/node": "^20.19.0",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.2"
   },
   "dependencies": {
     "isolated-vm": "^7.0.1",
