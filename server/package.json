@@ -19,15 +19,15 @@
     "db:reset:sqlite": "DATABASE_PROVIDER=sqlite npm run db:select && prisma db push --force-reset"
   },
   "dependencies": {
-    "@fastify/websocket": "^8.3.1",
+    "@fastify/websocket": "^11.3.0",
+    "@nythera/content-schema": "*",
+    "@nythera/shared": "*",
     "@prisma/client": "5.10.0",
     "argon2": "^0.45.1",
     "dotenv": "^17.4.2",
-    "fastify": "^4.25.0",
+    "fastify": "^5.12.3",
     "fastify-plugin": "^6.0.0",
-    "pino": "^9.14.0",
-    "@nythera/shared": "*",
-    "@nythera/content-schema": "*"
+    "pino": "^9.14.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
