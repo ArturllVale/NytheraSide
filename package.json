@@ -6,7 +6,7 @@
     "tools/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspace=@nythera/shared && npm run build --workspace=@nythera/content-schema && npm run build --workspace=@nythera/server && npm run build --workspace=@nythera/content-sync",
     "test": "npm test --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "lint": "eslint .",

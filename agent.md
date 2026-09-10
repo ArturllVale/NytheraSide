@@ -93,3 +93,8 @@ NytheraSide/
 ├─ README.md
 ├─ plan.md
 └─ agent.md
+## 2026-09-10 operational baseline
+- SQLite + Prisma is the default local development/test path; PostgreSQL + Prisma is the production path.
+- Select the Prisma provider before generating the client. Do not assume migrations are portable between providers.
+- Redis is not persistent storage and is optional locally unless a feature explicitly declares it required.
+- Do not claim CCU capacity without a PostgreSQL production-like benchmark.

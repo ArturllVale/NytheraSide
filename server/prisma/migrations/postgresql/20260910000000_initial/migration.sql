@@ -1,0 +1,2 @@
+-- PostgreSQL migration track is deliberately separate from SQLite.
+-- Generate and review this migration in a PostgreSQL staging database before production deployment.

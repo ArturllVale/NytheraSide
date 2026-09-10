@@ -3,7 +3,6 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { RegisterRequestSchema, LoginRequestSchema, ErrorCodes } from '@nythera/shared';
 import { logger } from '../../infra/logger';
 import { rateLimiter } from '../../infra/ratelimit';
-import { rateLimiter } from '../../infra/ratelimit';
 
 export class AuthController {
   private authService: AuthService;
@@ -70,7 +69,7 @@ export class AuthController {
     } catch (error) {
       const code = (error as { code?: string }).code;
       if (code === ErrorCodes.AUTH_INVALID_CREDENTIALS || code === ErrorCodes.AUTH_RATE_LIMIT_EXCEEDED) {
-        reply.status(401).send({
+        reply.status(code === ErrorCodes.AUTH_RATE_LIMIT_EXCEEDED ? 429 : 401).send({
           success: false,
           error: (error as Error).message,
         });

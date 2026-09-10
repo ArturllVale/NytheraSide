@@ -1,0 +1,2 @@
+-- Baseline for local SQLite development. Prefer `npm run db:migrate:sqlite`.
+-- The project currently uses db push because the historical database had no Prisma migration baseline.

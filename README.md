@@ -3,46 +3,30 @@
 Um RPG Idle/MMO-lite com cliente no **RPG Maker MV** e servidor autoritário em **Node.js/Fastify**. O cliente roda apenas animações visuais, toda a lógica de batalha e progresso é gerenciada no backend.
 
 ## Pré-requisitos
-- [Node.js 20+](https://nodejs.org/)
-- [RPG Maker MV](https://www.rpgmakerweb.com/products/rpg-maker-mv) (opcional, para editar o projeto)
+- Node.js 20+
+- RPG Maker MV/MZ-compatible project runtime for the first client test (not validated in this environment)
 
-*(Nota: O projeto foi atualizado para utilizar o Prisma e o SQLite localmente, removendo totalmente a necessidade do Docker ou Redis para simplificar o desenvolvimento.)*
+SQLite is the default development database. PostgreSQL and Redis are **not** required to boot locally.
 
----
+## 🚀 Backend local (SQLite)
 
-## 🚀 Como Iniciar (Backend)
-
-**1. Instalar dependências**
-O projeto usa `npm workspaces`.
 ```bash
 npm install
+cp .env.development.example .env
+npm run db:generate:sqlite --workspace=server
+npm run db:migrate:sqlite --workspace=server
+npm run dev --workspace=server
 ```
 
-**2. Variáveis de ambiente**
-Copie o arquivo de exemplo na raiz do projeto para criar o `.env`:
-```bash
-cp .env.example .env
-```
-*(O padrão de `.env` configurará o banco local `dev.db` na pasta do servidor).*
+The API listens on `http://localhost:3000`; check `GET /health` and `GET /ready`.
 
-**3. Sincronizar o Banco de Dados (Prisma + SQLite)**
-Crie as tabelas necessárias no arquivo SQLite local:
-```bash
-npm run db:push --workspace=apps/server
-```
+For the first RPG Maker test, import and publish content with the configured admin key, register/login through the REST API, then use the emitted session token in the current `NET_Auth` prompt. The client integration has **not** been executed end-to-end yet.
 
-**4. Iniciar o Servidor**
-Rode o servidor em modo de desenvolvimento:
-```bash
-npm run dev --workspace=apps/server
-```
-O servidor estará rodando em `http://localhost:3000`.
-
----
+Production PostgreSQL setup, migration caveats and all current limitations are documented in `docs/`.
 
 ## 🎮 Como Configurar o Cliente (RPG Maker MV)
 
-1. Os plugins de rede estão em `apps/rmmv-client/js/plugins`.
+1. Os plugins de rede estão em `js/plugins`.
 2. Para que o jogo funcione, adicione os plugins na lista do Gerenciador de Plugins (Plugin Manager) do RPG Maker MV na seguinte **ordem exata**:
    - `NET_Client`
    - `NET_Auth`
@@ -54,8 +38,8 @@ O servidor estará rodando em `http://localhost:3000`.
 
 ## 🛠️ Estrutura do Monorepo
 
-- `apps/server`: Servidor autoritário (Fastify, Prisma, Zod, isolated-vm, WebSockets).
-- `apps/rmmv-client`: O cliente jogo (arquivos do RPG Maker MV + plugins de rede customizados).
+- `server`: Servidor autoritário (Fastify, Prisma, Zod, isolated-vm, WebSockets).
+- repository root (RPG Maker project): O cliente jogo (arquivos do RPG Maker MV + plugins de rede customizados).
 - `packages/shared`: DTOs (Data Transfer Objects) e Tipos compartilhados.
 - `packages/content-schema`: Normalizadores e Validadores dos arquivos de dados (JSON) do RPG Maker.
 

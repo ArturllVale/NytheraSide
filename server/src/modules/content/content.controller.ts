@@ -53,14 +53,5 @@ export class ContentController {
     }
   }
 
-  // GET /content/version (Public)
-  async getActiveVersion(request: FastifyRequest, reply: FastifyReply) {
-    try {
-      const result = await this.contentService.getActiveContent();
-      reply.send({ success: true, version: result.version });
-    } catch (error) {
-      request.log.error(error, 'Error getting active content version:');
-      reply.status(500).send({ success: false, error: (error as Error).message });
-    }
-  }
+
 }

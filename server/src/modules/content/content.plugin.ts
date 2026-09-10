@@ -5,7 +5,7 @@ import fp from 'fastify-plugin';
 const adminKeyAuth = (request: FastifyRequest, reply: FastifyReply): void => {
   const providedKey = request.headers['x-admin-key'];
   const expectedKey = process.env.ADMIN_API_KEY;
-  if (!providedKey || providedKey !== expectedKey) {
+  if (!expectedKey || !providedKey || providedKey !== expectedKey) {
     reply.status(401).send({ success: false, error: 'Unauthorized' });
   }
 };
@@ -28,10 +28,8 @@ const contentPlugin: FastifyPluginAsync = async (fastify) => {
     { preHandler: [adminKeyAuth] },
     contentController.getActiveContent.bind(contentController)
   );
-  fastify.get(
-    '/content/version',
-    contentController.getActiveVersion.bind(contentController)
-  );
+  fastify.get('/content/version', contentController.getActiveVersion.bind(contentController));
+  fastify.get('/content/active', contentController.getActiveVersion.bind(contentController));
 };
 
 export default fp(contentPlugin, { name: 'content' });
