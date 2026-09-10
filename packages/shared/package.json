@@ -1,7 +1,7 @@
 {
   "name": "@nythera/shared",
   "version": "0.1.0",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
@@ -12,5 +12,8 @@
     "@types/node": "^20.11.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "zod": "^4.6.1"
   }
 }

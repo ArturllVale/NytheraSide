@@ -1,37 +1,44 @@
-import Fastify, { FastifyInstance } from 'fastify';
-import contentPlugin from './modules/content/content.plugin';
+import Fastify, { type FastifyInstance } from 'fastify';
+import fastifyWebsocket from '@fastify/websocket';
 import authPlugin from './modules/auth/auth.plugin';
 import characterPlugin from './modules/character/character.plugin';
+import contentPlugin from './modules/content/content.plugin';
 import progressPlugin from './modules/progress/progress.plugin';
-import { connectRedis } from './infra/redis';
-
-import fastifyWebsocket from '@fastify/websocket';
 import battleGateway from './modules/battle/battle.gateway';
+import { prisma } from './infra/prisma';
+import { RedisService } from './infra/redis';
+import { loadConfig, type AppConfig } from './core/config';
 
-const server: FastifyInstance = Fastify({ logger: true });
+export async function buildServer(config: AppConfig = loadConfig()): Promise<FastifyInstance> {
+  const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? 'info' }, requestIdHeader: 'x-request-id' });
+  const redis = new RedisService({ enabled: config.redisEnabled, connected: false, required: config.redisRequired });
+  await redis.connect();
+  app.decorate('runtimeConfig', config);
+  app.decorate('redisService', redis);
+  await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
+  await app.register(contentPlugin);
+  await app.register(authPlugin);
+  await app.register(characterPlugin);
+  await app.register(progressPlugin);
+  await app.register(battleGateway);
+  app.get('/health', async () => ({ status: 'ok', environment: config.nodeEnv, databaseProvider: config.databaseProvider, redis: redis.describe().connected ? 'connected' : 'local' }));
+  app.get('/ready', async (request, reply) => {
+    try { await prisma.$queryRaw`SELECT 1`; }
+    catch (error) { request.log.error({ err: error }, 'database readiness check failed'); return reply.code(503).send({ status: 'not_ready', dependency: 'database' }); }
+    if (!redis.isReady()) return reply.code(503).send({ status: 'not_ready', dependency: 'redis' });
+    return { status: 'ready', databaseProvider: config.databaseProvider };
+  });
+  app.addHook('onClose', async () => { await redis.disconnect(); await prisma.$disconnect(); });
+  return app;
+}
 
-// Register WebSocket support
-server.register(fastifyWebsocket);
+declare module 'fastify' { interface FastifyInstance { runtimeConfig: AppConfig; redisService: RedisService; } }
 
-// Register plugins
-server.register(contentPlugin);
-server.register(authPlugin);
-server.register(characterPlugin);
-server.register(progressPlugin);
-server.register(battleGateway);
-
-server.get('/health', async () => {
-  return { status: 'ok' };
-});
-
-const start = async () => {
-  try {
-    await server.listen({ port: 3000, host: '0.0.0.0' });
-    server.log.info(`Server listening on ${server.server.address()}`);
-  } catch (err) {
-    server.log.error(err);
-    process.exit(1);
-  }
-};
-
-start();
+async function start() {
+  const config = loadConfig();
+  const app = await buildServer(config);
+  const close = async (signal: string) => { app.log.info({ signal }, 'shutting down'); await app.close(); process.exit(0); };
+  process.once('SIGINT', () => void close('SIGINT')); process.once('SIGTERM', () => void close('SIGTERM'));
+  await app.listen({ port: config.port, host: config.host });
+}
+if (require.main === module) start().catch((error) => { console.error(error); process.exit(1); });

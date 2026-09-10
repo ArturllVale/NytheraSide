@@ -1,7 +1,7 @@
 import { CharacterService } from './character.service';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { CreateCharacterRequestSchema, ErrorCodes } from '@nythera/shared';
-import { z } from 'zod';
+import { logger } from '../../infra/logger';
 
 export class CharacterController {
   private characterService: CharacterService;
@@ -33,7 +33,7 @@ export class CharacterController {
       if (error.code === ErrorCodes.CHARACTER_ACTOR_NOT_FOUND || error.code === ErrorCodes.CHARACTER_CLASS_NOT_FOUND) {
         reply.status(404).send({ success: false, error: error.message });
       } else {
-        console.error('Error in createCharacter:', error);
+        logger.error({ err: error }, 'Error in createCharacter');
         reply.status(500).send({ success: false, error: 'Internal server error' });
       }
     }
@@ -50,7 +50,7 @@ export class CharacterController {
       const characters = await this.characterService.getCharactersByUserId(userId);
       reply.send({ success: true, data: characters });
     } catch (error) {
-      console.error('Error in getCharacters:', error);
+      logger.error({ err: error }, 'Error in getCharacters');
       reply.status(500).send({ success: false, error: 'Internal server error' });
     }
   }
@@ -70,7 +70,7 @@ export class CharacterController {
       if (error.code === 'CHARACTER_NOT_FOUND') {
         reply.status(404).send({ success: false, error: error.message });
       } else {
-        console.error('Error in getCharacterById:', error);
+        logger.error({ err: error }, 'Error in getCharacterById');
         reply.status(500).send({ success: false, error: 'Internal server error' });
       }
     }

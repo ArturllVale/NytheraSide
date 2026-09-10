@@ -1,7 +1,7 @@
 {
   "name": "@nythera/content-sync",
   "version": "0.1.0",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
@@ -18,6 +18,7 @@
     "axios": "^1.20.0",
     "chokidar": "^5.0.0",
     "commander": "^15.0.0",
-    "lodash.debounce": "^4.0.8"
+    "lodash.debounce": "^4.0.8",
+    "@nythera/content-schema": "*"
   }
 }
