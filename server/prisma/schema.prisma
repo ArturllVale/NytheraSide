@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  password_hash String
+  created_at    DateTime    @default(now())
+
+  sessions      Session[]
+  characters    Character[]
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  user_id    String
+  token      String   @unique
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model ContentVersion {
+  id         String          @id @default(uuid())
+  version    Int             @unique
+  payload    String          // JSON
+  hash       String          @default("")
+  created_at DateTime        @default(now())
+  active     ContentActive[]
+}
+
+model ContentActive {
+  id           String         @id @default(uuid())
+  version_id   String         @unique
+  activated_at DateTime       @default(now())
+
+  version      ContentVersion @relation(fields: [version_id], references: [id], onDelete: Cascade)
+}
+
+model ContentDraft {
+  id         String   @id @default(uuid())
+  payload    String   // JSON
+  hash       String   @default("")
+  created_at DateTime @default(now())
+}
+
+model Character {
+  id                String   @id @default(uuid())
+  user_id           String
+  name              String
+  actor_template_id Int
+  base_stats        String   // JSON
+  level             Int      @default(1)
+  exp               Int      @default(0)
+  currency          String   @default("{}") // JSON
+  created_at        DateTime @default(now())
+
+  user              User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  battles           Battle[]
+  idle_state        CharacterIdleState?
+}
+
+model Battle {
+  id              String   @id @default(uuid())
+  character_id    String
+  content_version Int
+  seed            String
+  status          String   @default("ACTIVE")
+  side_party      String   // JSON
+  side_troop      String   // JSON
+  state_snapshot  String   // JSON
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  character       Character @relation(fields: [character_id], references: [id], onDelete: Cascade)
+}
+
+model CharacterIdleState {
+  id                String   @id @default(uuid())
+  character_id      String   @unique
+  last_synced_at    DateTime @default(now())
+  route_or_stage_id Int      @default(1)
+  strategy          String   @default("{}") // JSON
+  energy            Int      @default(100)
+  content_version   Int
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  character         Character @relation(fields: [character_id], references: [id], onDelete: Cascade)
+}
+
+model IdempotencyKey {
+  key        String   @id
+  created_at DateTime @default(now())
+}

@@ -1,0 +1,30 @@
+{
+  "private": true,
+  "workspaces": [
+    "server",
+    "packages/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm test --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "lint": "eslint .",
+    "dev": "npm run dev --workspace=server",
+    "lint:fix": "eslint . --fix",
+    "lint:types": "eslint --config eslint.typed.config.mjs ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^20.11.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-prettier": "^5.1.2",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^1.2.0"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@nythera/content-sync",
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts"
+  },
+  "devDependencies": {
+    "@types/lodash.debounce": "^4.0.9",
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "axios": "^1.20.0",
+    "chokidar": "^5.0.0",
+    "commander": "^15.0.0",
+    "lodash.debounce": "^4.0.8"
+  }
+}
