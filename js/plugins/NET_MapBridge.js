@@ -281,13 +281,16 @@
     var _netSprites = {};   // id -> Sprite_Character
 
     function clearRegistry() {
+        Object.keys(_netSprites).forEach(function(id) {
+            window._removeNetSprite(id);
+        });
         _netPlayers = {};
         _netSprites = {};
     }
 
-    window._injectNetSprite = function(character) {
+    window._injectNetSprite = function(character, targetSpriteset) {
         var id = character._netId || character._spriteId;
-        var spriteset = SceneManager._scene && SceneManager._scene._spriteset;
+        var spriteset = targetSpriteset || (SceneManager._scene && SceneManager._scene._spriteset);
         if (!spriteset || !spriteset._tilemap) return;
 
         if (_netSprites[id] && _netSprites[id].parent === spriteset._tilemap) {
@@ -304,6 +307,9 @@
         var sprite = new Sprite_Character(character);
         _netSprites[id] = sprite;
         spriteset._tilemap.addChild(sprite);
+        if (spriteset._characterSprites && !spriteset._characterSprites.includes(sprite)) {
+            spriteset._characterSprites.push(sprite);
+        }
     };
 
     window._removeNetSprite = function(id) {
@@ -311,6 +317,10 @@
             var spriteset = SceneManager._scene && SceneManager._scene._spriteset;
             if (spriteset && spriteset._tilemap) {
                 spriteset._tilemap.removeChild(_netSprites[id]);
+            }
+            if (spriteset && spriteset._characterSprites) {
+                var idx = spriteset._characterSprites.indexOf(_netSprites[id]);
+                if (idx >= 0) spriteset._characterSprites.splice(idx, 1);
             }
             delete _netSprites[id];
         }
@@ -336,12 +346,13 @@
     // =========================================================================
     window.NET.Client.on('MAP_UPDATE_RES', function(data) {
         if (!data || !data.payload || !data.payload.players) return;
-        if (!$gameMap || !$gamePlayer) return;
-        if (!(SceneManager._scene instanceof Scene_Map)) return;
+        if (!$gameMap || !$gamePlayer || !$gameMap.mapId()) return;
 
+        var currentMapId = $gameMap.mapId();
         var players = data.payload.players;
         var receivedIds = {};
         players.forEach(function(pData) {
+            if (pData.mapId !== undefined && pData.mapId !== currentMapId) return;
             receivedIds[pData.id] = true;
             if (_netPlayers[pData.id]) {
                 _netPlayers[pData.id].syncFromServer(pData);
@@ -362,15 +373,16 @@
     Spriteset_Map.prototype.createCharacters = function() {
         _Spriteset_Map_createCharacters.call(this);
         _netSprites = {};
+        var self = this;
         Object.keys(_netPlayers).forEach(function(id) {
             var np = _netPlayers[id];
-            window._injectNetSprite(np);
-            np._followers.forEach(function(f) { window._injectNetSprite(f); });
+            window._injectNetSprite(np, self);
+            np._followers.forEach(function(f) { window._injectNetSprite(f, self); });
         });
     };
 
     // =========================================================================
-    // 5. Update Loop
+    // 5. Update Loop & Scene Lifecycle
     // =========================================================================
     var _Scene_Map_updateMain = Scene_Map.prototype.updateMain;
     Scene_Map.prototype.updateMain = function() {
@@ -380,11 +392,44 @@
         });
     };
 
+    var _Scene_Map_start = Scene_Map.prototype.start;
+    Scene_Map.prototype.start = function() {
+        _Scene_Map_start.call(this);
+        _lastSentX = null;
+        _lastSentY = null;
+        _lastSentDir = null;
+        _lastSentAt = 0;
+        var now = performance.now();
+        Object.keys(_netPlayers).forEach(function(id) {
+            if (_netPlayers[id]) {
+                _netPlayers[id]._lastTargetTimestamp = now;
+            }
+        });
+    };
+
     var _Scene_Map_terminate = Scene_Map.prototype.terminate;
     Scene_Map.prototype.terminate = function() {
         _Scene_Map_terminate.call(this);
+        _netSprites = {};
+    };
+
+    var _Game_Map_setup = Game_Map.prototype.setup;
+    Game_Map.prototype.setup = function(mapId) {
+        _Game_Map_setup.call(this, mapId);
         clearRegistry();
     };
+
+    var _Scene_Title_start = Scene_Title.prototype.start;
+    Scene_Title.prototype.start = function() {
+        _Scene_Title_start.call(this);
+        clearRegistry();
+    };
+
+    if (window.NET && NET.Client) {
+        NET.Client.on('disconnected', function() {
+            clearRegistry();
+        });
+    }
 
     // =========================================================================
     // 6. Send Move Request
@@ -455,6 +500,21 @@
                 }
             });
         }
+    };
+
+    // =========================================================================
+    // 7. Desativar Andar por Clique (Mouse / Touch)
+    // =========================================================================
+    Scene_Map.prototype.isMapTouchOk = function() {
+        return false;
+    };
+
+    Scene_Map.prototype.processMapTouch = function() {
+        // Desativado: o jogador não anda ao clicar/tocar no mapa
+    };
+
+    Game_Temp.prototype.setDestination = function() {
+        // Desativado: impede a criação de qualquer destino de clique no mapa
     };
 
 })();
