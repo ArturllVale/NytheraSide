@@ -2155,13 +2155,7 @@ SceneManager.updateScene = function() {
 };
 
 SceneManager.isGameActive = function() {
-    // [Note] We use "window.top" to support an iframe.
-    try {
-        return window.top.document.hasFocus();
-    } catch (e) {
-        // SecurityError
-        return true;
-    }
+    return true;
 };
 
 SceneManager.onSceneTerminate = function() {

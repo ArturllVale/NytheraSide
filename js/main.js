@@ -64,10 +64,11 @@ class Main {
     }
 
     loadMainScripts() {
+        const ver = '?v=' + Date.now(); // unique per session — kills cache
         for (const url of scriptUrls) {
             const script = document.createElement("script");
             script.type = "text/javascript";
-            script.src = url;
+            script.src = url + ver;
             script.async = false;
             script.defer = true;
             script.onload = this.onScriptLoad.bind(this);

@@ -15,6 +15,17 @@ export async function buildServer(config: AppConfig = loadConfig()): Promise<Fas
   await redis.connect();
   app.decorate('runtimeConfig', config);
   app.decorate('redisService', redis);
+
+  // CORS support for RPG Maker client (web/NW.js)
+  app.addHook('onRequest', async (req, reply) => {
+    reply.header('Access-Control-Allow-Origin', '*');
+    reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-key');
+    if (req.method === 'OPTIONS') {
+      return reply.status(204).send();
+    }
+  });
+
   await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024 } });
   await app.register(contentPlugin);
   await app.register(authPlugin);

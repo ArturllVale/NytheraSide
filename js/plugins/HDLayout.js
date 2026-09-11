@@ -1053,5 +1053,10 @@
 		this.drawText(value, rect.x + 160, rect.y, rect.width - 160 - PARAM_OFFSET_X, "right");
 	};
 
+    if (!Window_Base.prototype.drawActorPicture) {
+        Window_Base.prototype.drawActorPicture = function(actor, x, y, width, height) {
+            this.drawActorFace(actor, x, y, width, height);
+        };
+    }
 
 })();

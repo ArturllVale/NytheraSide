@@ -37,6 +37,7 @@ export const SetAutoRequestSchema = z.object({
 });
 
 export type SetAutoRequest = z.infer<typeof SetAutoRequestSchema>;
+import { MapMoveRequestSchema, MapUpdateResponseSchema } from './map.dto';
 
 // Schema para mensagens enviadas pelo CLIENTE para o servidor
 export const BattleWsClientPayloadSchema = z.discriminatedUnion('type', [
@@ -56,6 +57,10 @@ export const BattleWsClientPayloadSchema = z.discriminatedUnion('type', [
     type: z.literal('BATTLE_SET_AUTO_REQ'),
     isAuto: z.boolean()
   }),
+  z.object({
+    type: z.literal('MAP_MOVE_REQ'),
+    payload: MapMoveRequestSchema
+  }),
 ]);
 
 export type BattleWsClientPayload = z.infer<typeof BattleWsClientPayloadSchema>;
@@ -64,7 +69,15 @@ export type BattleWsClientPayload = z.infer<typeof BattleWsClientPayloadSchema>;
 export const BattleWsServerPayloadSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('AUTH_RES'),
-    success: z.boolean()
+    success: z.boolean(),
+    character: z.object({
+      id: z.string(),
+      name: z.string(),
+      mapId: z.number().int(),
+      x: z.number().int(),
+      y: z.number().int(),
+      direction: z.number().int(),
+    }).optional()
   }),
   z.object({
     type: z.literal('BATTLE_UPDATE_RES'),
@@ -74,6 +87,10 @@ export const BattleWsServerPayloadSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('ERROR_RES'),
     message: z.string()
+  }),
+  z.object({
+    type: z.literal('MAP_UPDATE_RES'),
+    payload: MapUpdateResponseSchema
   })
 ]);
 
