@@ -215,7 +215,7 @@ Window_Base.prototype.drawRect = function(x, y, width, height) {
 };
 
 Window_Base.prototype.drawText = function(text, x, y, maxWidth, align) {
-    this.contents.drawText(text, x, y, maxWidth, this.lineHeight(), align);
+    this.contents.drawText(text, x, y, maxWidth, this.lineHeight(), align || "left");
 };
 
 Window_Base.prototype.textWidth = function(text) {

@@ -1674,7 +1674,7 @@ Bitmap.prototype.drawText = function(text, x, y, maxWidth, lineHeight, align) {
     }
     context.save();
     context.font = this._makeFontNameText();
-    context.textAlign = align;
+    context.textAlign = align || "left";
     context.textBaseline = "alphabetic";
     context.globalAlpha = 1;
     this._drawTextOutline(text, tx, ty, maxWidth);

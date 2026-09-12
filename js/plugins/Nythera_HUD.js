@@ -168,6 +168,10 @@
 
     Sprite_NytheraHUD.prototype.initialize = function() {
         Sprite.prototype.initialize.call(this);
+        this._minimapZoomIndex = 1; // 0: 0.75x, 1: 1.0x, 2: 1.5x
+        this._minimapZooms = [0.75, 1.0, 1.5];
+        this._scale = 4; // 4px por tile
+
         this.createSubSprites();
         this._lastHp = -1;
         this._lastMp = -1;
@@ -192,9 +196,9 @@
         this._partyHudSprite.y = 106;
         this.addChild(this._partyHudSprite);
 
-        // Minimap container: compact (140x160px)
-        this._minimapSprite = new Sprite(new Bitmap(150, 170));
-        this._minimapSprite.x = Graphics.width - 156;
+        // Minimap container (Janela Retangular Redesenhada 192x156px)
+        this._minimapSprite = new Sprite(new Bitmap(196, 160));
+        this._minimapSprite.x = Graphics.width - 208;
         this._minimapSprite.y = 12;
         this.addChild(this._minimapSprite);
     };
@@ -426,41 +430,137 @@
     };
 
     // -------------------------------------------------------------------------
-    // RENDER: COMPACT MINIMAP (60 FPS Fluido com Cache e Sub-Pixel Smoothing)
+    // RENDER: RECTANGULAR MINIMAP WINDOW (Redesign Profissional MMORPG)
     // -------------------------------------------------------------------------
     Sprite_NytheraHUD.prototype.buildMapCache = function() {
-        if (!$gameMap) return;
+        if (!$gameMap || !$gameMap.mapId()) return;
         this._cachedMapId = $gameMap.mapId();
-        this._scale = 4; // 4px por tile
-        const scale = this._scale;
+
         const mapW = $gameMap.width();
         const mapH = $gameMap.height();
 
-        // Criação de bitmap offscreen com a renderização prévia do mapa
+        // Escala adaptativa inteligente baseada nas dimensões do mapa:
+        // Mapas compactos (< 25 tiles): 12px/tile (preenche bem sem ficar minúsculo)
+        // Mapas médios (25 a 50 tiles): 10px/tile
+        // Mapas extensos (> 50 tiles): 8px/tile
+        let baseScale = 10;
+        if (mapW < 25 && mapH < 25) {
+            baseScale = 12;
+        } else if (mapW > 50 || mapH > 50) {
+            baseScale = 8;
+        }
+        this._scale = baseScale;
+        const scale = this._scale;
+
         this._cachedMapBitmap = new Bitmap(mapW * scale, mapH * scale);
         const cctx = this._cachedMapBitmap.context;
 
+        // Pré-calcular passabilidade e terrenos para performance otimizada
+        const passable = [];
+        const water = [];
         for (let x = 0; x < mapW; x++) {
+            passable[x] = [];
+            water[x] = [];
             for (let y = 0; y < mapH; y++) {
                 const isPassable = $gameMap.isPassable(x, y, 2) ||
                                   $gameMap.isPassable(x, y, 4) ||
                                   $gameMap.isPassable(x, y, 6) ||
                                   $gameMap.isPassable(x, y, 8);
+                passable[x][y] = isPassable;
 
-                if (isPassable) {
-                    cctx.fillStyle = (x + y) % 2 === 0 ? '#1e382b' : '#234434';
-                } else {
-                    cctx.fillStyle = '#0f172a';
-                }
-                cctx.fillRect(x * scale, y * scale, scale, scale);
+                const t0 = $gameMap.tileId(x, y, 0);
+                water[x][y] = t0 >= 2048 && t0 < 2816;
             }
         }
+
+        // 1. Passada de Terreno Base (Cinza Ardósia Tático / Água Oceânica)
+        for (let x = 0; x < mapW; x++) {
+            for (let y = 0; y < mapH; y++) {
+                if (water[x][y]) {
+                    // Água: Azul marinho profundo sofisticado
+                    cctx.fillStyle = '#0b1d30';
+                    cctx.fillRect(x * scale, y * scale, scale, scale);
+                } else if (passable[x][y]) {
+                    // Chão caminhável: Ardósia grafite tática suave e uniforme
+                    cctx.fillStyle = '#1a2432';
+                    cctx.fillRect(x * scale, y * scale, scale, scale);
+
+                    // Micro-grade arquitetural ultra sutil (apenas 2% de opacidade)
+                    cctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
+                    cctx.lineWidth = 0.5;
+                    cctx.strokeRect(x * scale + 0.5, y * scale + 0.5, scale - 1, scale - 1);
+                } else {
+                    // Obstáculos / Paredes / Edifícios: Preto obsidiana rico
+                    cctx.fillStyle = '#080c14';
+                    cctx.fillRect(x * scale, y * scale, scale, scale);
+                }
+            }
+        }
+
+        // 2. Passada de Relevo 3D, Contornos Arquiteturais e Sombras Projetadas
+        for (let x = 0; x < mapW; x++) {
+            for (let y = 0; y < mapH; y++) {
+                if (water[x][y]) {
+                    // Borda de costa quando a água toca terra caminhável
+                    const touchesLand = (x > 0 && passable[x - 1][y]) ||
+                                        (x < mapW - 1 && passable[x + 1][y]) ||
+                                        (y > 0 && passable[x][y - 1]) ||
+                                        (y < mapH - 1 && passable[x][y + 1]);
+                    if (touchesLand) {
+                        cctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
+                        cctx.lineWidth = 1;
+                        cctx.strokeRect(x * scale + 0.5, y * scale + 0.5, scale - 1, scale - 1);
+                    }
+                } else if (!passable[x][y]) {
+                    // Contorno elegante nos limites entre obstáculos e chão caminhável
+                    cctx.strokeStyle = '#203348';
+                    cctx.lineWidth = 1;
+
+                    // Borda esquerda
+                    if (x > 0 && passable[x - 1][y]) {
+                        cctx.beginPath();
+                        cctx.moveTo(x * scale + 0.5, y * scale);
+                        cctx.lineTo(x * scale + 0.5, (y + 1) * scale);
+                        cctx.stroke();
+                    }
+                    // Borda direita
+                    if (x < mapW - 1 && passable[x + 1][y]) {
+                        cctx.beginPath();
+                        cctx.moveTo((x + 1) * scale - 0.5, y * scale);
+                        cctx.lineTo((x + 1) * scale - 0.5, (y + 1) * scale);
+                        cctx.stroke();
+                    }
+                    // Borda superior e realce de luz no topo do muro/telhado
+                    if (y > 0 && passable[x][y - 1]) {
+                        cctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                        cctx.beginPath();
+                        cctx.moveTo(x * scale, y * scale + 0.5);
+                        cctx.lineTo((x + 1) * scale, y * scale + 0.5);
+                        cctx.stroke();
+                        cctx.strokeStyle = '#203348';
+                    }
+                    // Borda inferior e projeção de sombra suave para o sul
+                    if (y < mapH - 1 && passable[x][y + 1]) {
+                        cctx.beginPath();
+                        cctx.moveTo(x * scale, (y + 1) * scale - 0.5);
+                        cctx.lineTo((x + 1) * scale, (y + 1) * scale - 0.5);
+                        cctx.stroke();
+
+                        // Sombra projetada no chão caminhável ao sul (profundidade 3D imediata)
+                        const shadowH = Math.min(4, Math.floor(scale * 0.35));
+                        cctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                        cctx.fillRect(x * scale, (y + 1) * scale, scale, shadowH);
+                    }
+                }
+            }
+        }
+
+        this._cachedMapBitmap._baseTexture.update();
     };
 
     Sprite_NytheraHUD.prototype.updateMinimap = function() {
         if (!$gameMap || !$gamePlayer) return;
 
-        // Constrói o cache apenas quando entra em um novo mapa
         if (this._cachedMapId !== $gameMap.mapId() || !this._cachedMapBitmap) {
             this.buildMapCache();
         }
@@ -469,119 +569,309 @@
         bmp.clear();
         const ctx = bmp.context;
 
-        const cx = 70;
-        const cy = 68;
-        const radius = 54;
-        const scale = this._scale || 4;
+        const winW = 194;
+        const winH = 148;
+        const scale = this._scale || 10;
+        const currentZoom = this._minimapZooms[this._minimapZoomIndex] || 1.0;
+        const drawScale = scale * currentZoom;
 
-        // Posição contínua de ponto flutuante (sub-tile) para movimento 100% fluido a 60 FPS
-        const px = $gamePlayer._realX;
-        const py = $gamePlayer._realY;
+        const vx = 4;
+        const vy = 22;
+        const vw = winW - 8;  // 186px
+        const vh = winH - 26; // 122px
 
-        ctx.save();
+        // Tratamento de cliques nos botões de Zoom [+] e [-]
+        const mouseX = TouchInput.x;
+        const mouseY = TouchInput.y;
+        const isClick = TouchInput.isTriggered();
 
-        // 1. Viewport do Radar (Círculo com Clip)
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#0a121e';
-        ctx.fill();
-        ctx.save();
-        ctx.clip();
+        const btnSize = 17;
+        const btnX = vx + vw - btnSize - 4;
+        const btnMinusY = vy + vh - btnSize - 4;
+        const btnPlusY = btnMinusY - btnSize - 3;
 
-        // Desenha o terreno do cache pré-renderizado sem nenhum peso de CPU por frame
-        if (this._cachedMapBitmap && this._cachedMapBitmap._canvas) {
-            const drawX = Math.round(cx - px * scale);
-            const drawY = Math.round(cy - py * scale);
-            ctx.drawImage(this._cachedMapBitmap._canvas, drawX, drawY);
-        }
+        const localMX = mouseX - this._minimapSprite.x;
+        const localMY = mouseY - this._minimapSprite.y;
 
-        // Anel sutil de alcance
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius * 0.5, 0, Math.PI * 2);
-        ctx.stroke();
+        const isPlusHover = localMX >= btnX && localMX <= btnX + btnSize && localMY >= btnPlusY && localMY <= btnPlusY + btnSize;
+        const isMinusHover = localMX >= btnX && localMX <= btnX + btnSize && localMY >= btnMinusY && localMY <= btnMinusY + btnSize;
 
-        // Marcadores de Eventos (NPCs e Inimigos) com interpolação suave
-        const events = $gameMap.events();
-        for (const ev of events) {
-            if (!ev || ev.isTransparent() || ev._erased) continue;
-            const edx = (ev._realX - px) * scale;
-            const edy = (ev._realY - py) * scale;
-
-            if (edx * edx + edy * edy <= (radius - 2) * (radius - 2)) {
-                const ex = Math.round(cx + edx);
-                const ey = Math.round(cy + edy);
-                const isNpc = ev.event() && ev.event().name && ev.event().name.startsWith('NPC:');
-
-                ctx.beginPath();
-                ctx.arc(ex, ey, 2.5, 0, Math.PI * 2);
-                ctx.fillStyle = isNpc ? '#fbbf24' : '#ef4444';
-                ctx.fill();
+        if (isClick) {
+            if (isPlusHover) {
+                if (this._minimapZoomIndex < this._minimapZooms.length - 1) {
+                    this._minimapZoomIndex++;
+                    if (SoundManager) SoundManager.playCursor();
+                }
+            } else if (isMinusHover) {
+                if (this._minimapZoomIndex > 0) {
+                    this._minimapZoomIndex--;
+                    if (SoundManager) SoundManager.playCursor();
+                }
             }
         }
 
-        // Marcador do Jogador (Seta em ciano no centro)
+        // 1. Moldura da Janela (Estilo Vidro Obsidiana idêntico à referência)
+        UI.drawContainer(ctx, 0, 0, winW, winH, 6);
+
+        // 2. Barra de Título (Header Clean "Mapa", sem botões de fechar/expandir)
         ctx.save();
-        ctx.translate(cx, cy);
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#f1f5f9';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowBlur = 2;
+        ctx.fillText('Mapa', 10, 11);
+        ctx.restore();
+
+        // Linha divisória sutil abaixo do header
+        ctx.strokeStyle = 'rgba(35, 60, 90, 0.65)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(4, 21.5);
+        ctx.lineTo(winW - 4, 21.5);
+        ctx.stroke();
+
+        // 3. Viewport do Mapa (Máscara arredondada)
+        ctx.save();
+        UI.roundRect(ctx, vx, vy, vw, vh, 4);
+        ctx.fillStyle = '#060a10';
+        ctx.fill();
+        ctx.clip(); // Clip do viewport
+
+        const cx = vx + vw / 2;
+        const cy = vy + vh / 2;
+        const px = $gamePlayer._realX;
+        const py = $gamePlayer._realY;
+
+        // Desenho do mapa estilizado com ponto flutuante contínuo a 60 FPS
+        if (this._cachedMapBitmap && this._cachedMapBitmap._canvas) {
+            const mapW = $gameMap.width();
+            const mapH = $gameMap.height();
+            const drawX = Math.round(cx - (px + 0.5) * drawScale);
+            const drawY = Math.round(cy - (py + 0.5) * drawScale);
+            ctx.drawImage(
+                this._cachedMapBitmap._canvas,
+                drawX,
+                drawY,
+                mapW * drawScale,
+                mapH * drawScale
+            );
+        }
+
+        // Vinheta atmosférica suave perimetral (escuridão sutil nas bordas do viewport)
+        const radG = ctx.createRadialGradient(cx, cy, 20, cx, cy, Math.max(vw, vh) * 0.7);
+        radG.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        radG.addColorStop(0.7, 'rgba(4, 8, 14, 0.15)');
+        radG.addColorStop(1, 'rgba(4, 8, 14, 0.55)');
+        ctx.fillStyle = radG;
+        ctx.fillRect(vx, vy, vw, vh);
+
+        // Outros Jogadores Conectados (Multiplayer via NET_MapBridge)
+        if (window._netPlayers) {
+            for (const id in window._netPlayers) {
+                const np = window._netPlayers[id];
+                if (!np) continue;
+                const edx = ((np._realX + 0.5) - (px + 0.5)) * drawScale;
+                const edy = ((np._realY + 0.5) - (py + 0.5)) * drawScale;
+                if (Math.abs(edx) <= vw / 2 && Math.abs(edy) <= vh / 2) {
+                    const nx = Math.round(cx + edx);
+                    const ny = Math.round(cy + edy);
+                    // Halo de jogador conectado
+                    ctx.beginPath();
+                    ctx.arc(nx, ny, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(16, 185, 129, 0.25)';
+                    ctx.fill();
+                    // Ponto esmeralda com contorno branco
+                    ctx.beginPath();
+                    ctx.arc(nx, ny, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = '#10b981';
+                    ctx.fill();
+                    ctx.lineWidth = 1.2;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Marcadores de Eventos (NPCs, Missões, Inimigos)
+        const events = $gameMap.events();
+        for (const ev of events) {
+            if (!ev || ev.isTransparent() || ev._erased) continue;
+            const edx = ((ev._realX + 0.5) - (px + 0.5)) * drawScale;
+            const edy = ((ev._realY + 0.5) - (py + 0.5)) * drawScale;
+
+            if (Math.abs(edx) <= vw / 2 - 2 && Math.abs(edy) <= vh / 2 - 2) {
+                const ex = Math.round(cx + edx);
+                const ey = Math.round(cy + edy);
+                const evName = (ev.event() && ev.event().name) || '';
+                const isQuest = evName.startsWith('Quest:') || evName.includes('!');
+                const isNpc = isQuest || evName.startsWith('NPC:');
+
+                if (isQuest) {
+                    // Ícone de Missão: Losango dourado com '!'
+                    ctx.save();
+                    ctx.translate(ex, ey);
+                    ctx.rotate(Math.PI / 4);
+                    ctx.beginPath();
+                    ctx.rect(-4, -4, 8, 8);
+                    ctx.fillStyle = '#f59e0b';
+                    ctx.fill();
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#000000';
+                    ctx.stroke();
+                    ctx.restore();
+
+                    ctx.save();
+                    ctx.font = 'bold 8px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText('!', ex, ey);
+                    ctx.restore();
+                } else if (isNpc) {
+                    // NPC: Ponto dourado com contorno escuro
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, 2.5, 0, Math.PI * 2);
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.fill();
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#000000';
+                    ctx.stroke();
+                } else {
+                    // Inimigo / Monstro: Ponto vermelho rubi
+                    ctx.beginPath();
+                    ctx.arc(ex, ey, 2.5, 0, Math.PI * 2);
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.fill();
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#000000';
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // Bússola Norte no Canto Superior Esquerdo (Fiel à referência: elegante, flutuante)
+        ctx.save();
+        const compassX = vx + 12;
+        const compassY = vy + 10;
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowBlur = 3;
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText('▲', compassX, compassY);
+        ctx.font = 'bold 8px sans-serif';
+        ctx.fillText('N', compassX, compassY + 9);
+        ctx.restore();
+
+        // Marcador do Jogador (Chevron Vermelho de Alta Fidelidade com Contorno Branco)
         let angle = 0;
         const dir = $gamePlayer.direction();
         if (dir === 8) angle = -Math.PI / 2;
         else if (dir === 2) angle = Math.PI / 2;
         else if (dir === 4) angle = Math.PI;
         else if (dir === 6) angle = 0;
+
+        ctx.save();
+        ctx.translate(cx, cy);
         ctx.rotate(angle);
 
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+
         ctx.beginPath();
-        ctx.moveTo(6, 0);
-        ctx.lineTo(-4, -4);
-        ctx.lineTo(-2, 0);
-        ctx.lineTo(-4, 4);
+        ctx.moveTo(7, 0);
+        ctx.lineTo(-5, -5);
+        ctx.lineTo(-2.5, 0);
+        ctx.lineTo(-5, 5);
         ctx.closePath();
-        ctx.fillStyle = '#38bdf8';
+
+        const pGrad = ctx.createLinearGradient(-5, 0, 7, 0);
+        pGrad.addColorStop(0, '#dc2626');
+        pGrad.addColorStop(1, '#ef4444');
+        ctx.fillStyle = pGrad;
         ctx.fill();
-        ctx.restore();
 
-        ctx.restore(); // Fim do clip
-
-        // 2. Aro Metálico Discreto
-        ctx.lineWidth = 2.5;
-        ctx.strokeStyle = 'rgba(38, 70, 110, 0.9)';
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius + 1, 0, Math.PI * 2);
+        ctx.shadowColor = 'transparent';
+        ctx.lineWidth = 1.8;
+        ctx.strokeStyle = '#ffffff';
         ctx.stroke();
 
-        // Marcador Norte
+        ctx.lineWidth = 0.8;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.stroke();
+        ctx.restore();
+
+        // 4. Placa Inferior Esquerda: Nome do Mapa e Coordenadas (Frosted Glass Pill)
+        const plaqueW = 104;
+        const plaqueH = 26;
+        const plaqueX = vx + 4;
+        const plaqueY = vy + vh - plaqueH - 4;
+
+        ctx.save();
+        UI.roundRect(ctx, plaqueX, plaqueY, plaqueW, plaqueH, 4);
+        ctx.fillStyle = 'rgba(6, 12, 20, 0.88)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(30, 52, 78, 0.8)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        const mapName = ($gameMap && $gameMap.displayName && $gameMap.displayName()) || 'Cidade de Valoria';
+        const coordsText = `X: ${$gamePlayer.x}  Y: ${$gamePlayer.y}`;
+
         ctx.font = 'bold 9px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#ef4444';
-        ctx.fillText('N', cx, cy - radius + 7);
-
-        // 3. Placa de Localidade e Coordenadas
-        const plaqueW = 124;
-        const plaqueH = 18;
-        const plaqueX = cx - plaqueW / 2;
-        const plaqueY = cy + radius + 6;
-
-        UI.drawContainer(ctx, plaqueX, plaqueY, plaqueW, plaqueH, 4);
-
-        const mapName = ($gameMap && $gameMap.displayName()) || 'Mapa';
-        const coords = `${$gamePlayer.x}, ${$gamePlayer.y}`;
-
-        ctx.font = '9px sans-serif';
-        ctx.textBaseline = 'middle';
+        ctx.textBaseline = 'top';
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'left';
-        ctx.fillText(mapName, plaqueX + 6, plaqueY + plaqueH / 2);
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowBlur = 2;
+        ctx.fillText(mapName, plaqueX + 6, plaqueY + 3);
 
+        ctx.font = 'bold 8px sans-serif';
         ctx.fillStyle = '#38bdf8';
-        ctx.textAlign = 'right';
-        ctx.fillText(coords, plaqueX + plaqueW - 6, plaqueY + plaqueH / 2);
-
+        ctx.fillText(coordsText, plaqueX + 6, plaqueY + 14);
         ctx.restore();
+
+        // 5. Botões de Zoom [+] e [-] no Canto Inferior Direito
+        // Botão [+]
+        ctx.save();
+        UI.roundRect(ctx, btnX, btnPlusY, btnSize, btnSize, 3);
+        ctx.fillStyle = isPlusHover ? 'rgba(20, 44, 72, 0.95)' : 'rgba(8, 16, 28, 0.88)';
+        ctx.fill();
+        ctx.strokeStyle = isPlusHover ? 'rgba(56, 189, 248, 0.95)' : 'rgba(38, 70, 105, 0.75)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('+', btnX + btnSize / 2, btnPlusY + btnSize / 2);
+
+        // Botão [-]
+        UI.roundRect(ctx, btnX, btnMinusY, btnSize, btnSize, 3);
+        ctx.fillStyle = isMinusHover ? 'rgba(20, 44, 72, 0.95)' : 'rgba(8, 16, 28, 0.88)';
+        ctx.fill();
+        ctx.strokeStyle = isMinusHover ? 'rgba(56, 189, 248, 0.95)' : 'rgba(38, 70, 105, 0.75)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillText('−', btnX + btnSize / 2, btnMinusY + btnSize / 2);
+        ctx.restore();
+
+        ctx.restore(); // Fim do clip do viewport
+
+        // 6. Borda Interna de Proteção do Viewport
+        ctx.strokeStyle = 'rgba(28, 50, 78, 0.85)';
+        ctx.lineWidth = 1;
+        UI.roundRect(ctx, vx, vy, vw, vh, 4);
+        ctx.stroke();
+
         bmp._baseTexture.update();
     };
+
 
     // =========================================================================
     // SCENE HOOKS
@@ -598,6 +888,25 @@
     };
 
     Window_MapName.prototype.open = function() {};
+
+    // Desativar botão de menu touch padrão na tela do mapa
+    Scene_Map.prototype.createMenuButton = function() {};
+
+    // Desativar abertura do menu pelo botão direito do mouse no mapa (apenas tecla de menu/ESC)
+    Scene_Map.prototype.isMenuCalled = function() {
+        return Input.isTriggered("menu");
+    };
+
+    // Desativar corrida / dash com Shift (movimento padrão fixo estilo MMORPG)
+    Game_Player.prototype.updateDashing = function() {
+        this._dashing = false;
+    };
+    Game_Player.prototype.isDashButtonPressed = function() {
+        return false;
+    };
+    Game_Player.prototype.isDashing = function() {
+        return false;
+    };
 
     // =========================================================================
     // PHASE 2: RAGNAROK-STYLE NAMEPLATES & FOOT BARS (HP VERDE / MP AZUL)

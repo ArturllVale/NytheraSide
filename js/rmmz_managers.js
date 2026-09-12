@@ -1975,7 +1975,7 @@ SceneManager.initInput = function() {
 SceneManager.setupEventHandlers = function() {
     window.addEventListener("error", this.onError.bind(this));
     window.addEventListener("unhandledrejection", this.onReject.bind(this));
-    window.addEventListener("unload", this.onUnload.bind(this));
+    window.addEventListener("pagehide", this.onUnload.bind(this));
     document.addEventListener("keydown", this.onKeyDown.bind(this));
 };
 
