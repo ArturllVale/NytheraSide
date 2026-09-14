@@ -48,7 +48,8 @@ export const BattleWsClientPayloadSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('BATTLE_START_REQ'),
-    troopId: z.number().int().positive()
+    troopId: z.number().int().positive().optional(),
+    enemyIds: z.array(z.number().int().positive()).optional()
   }),
   z.object({
     type: z.literal('BATTLE_COMMAND_REQ'),

@@ -160,7 +160,7 @@ export default async function battleGateway(fastify: FastifyInstance) {
         }
 
         if (payload.type === 'BATTLE_START_REQ') {
-          const { state } = await battleService.startBattle(characterId, payload.troopId);
+          const { state } = await battleService.startBattle(characterId, payload.troopId, payload.enemyIds);
           activeBattleId = state.id;
           socket.send(JSON.stringify({
             type: 'BATTLE_UPDATE_RES',

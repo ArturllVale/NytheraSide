@@ -5,7 +5,7 @@ import { BattleEngine } from './engine/engine';
 import { StrategyAI } from './engine/ai';
 
 export class BattleService {
-  async startBattle(characterId: string, troopId: number) {
+  async startBattle(characterId: string, troopId?: number, enemyIds?: number[]) {
     // 1. Get active content
     const active = await prisma.contentActive.findFirst({
       include: { version: true },
@@ -44,29 +44,58 @@ export class BattleService {
     }];
 
     // 4. Build Troop
-    const troopData = content.Troops[troopId];
-    if (!troopData) throw new Error('Troop not found');
-    const troop: Battler[] = troopData.members.map((m: any, idx: number) => {
-      const enemyData = content.Enemies[m.enemyId];
-      const eStats = enemyData.params;
-      return {
-        id: `enemy-${idx}`,
-        templateId: m.enemyId,
-        isEnemy: true,
-        name: enemyData.name,
-        hp: eStats[0],
-        mp: eStats[1],
-        mhp: eStats[0],
-        mmp: eStats[1],
-        atk: eStats[2],
-        def: eStats[3],
-        mat: eStats[4],
-        mdf: eStats[5],
-        agi: eStats[6],
-        luk: eStats[7],
-        isDead: false
-      };
-    });
+    let troop: Battler[] = [];
+    if (enemyIds && enemyIds.length > 0) {
+      troop = enemyIds.map((enemyId, idx) => {
+        const enemyData = content.Enemies[enemyId];
+        if (!enemyData) throw new Error(`Enemy ID ${enemyId} not found`);
+        const eStats = enemyData.params;
+        return {
+          id: `enemy-${idx}`,
+          templateId: enemyId,
+          isEnemy: true,
+          name: enemyData.name,
+          hp: eStats[0],
+          mp: eStats[1],
+          mhp: eStats[0],
+          mmp: eStats[1],
+          atk: eStats[2],
+          def: eStats[3],
+          mat: eStats[4],
+          mdf: eStats[5],
+          agi: eStats[6],
+          luk: eStats[7],
+          isDead: false
+        };
+      });
+    } else if (troopId) {
+      const troopData = content.Troops[troopId];
+      if (!troopData) throw new Error('Troop not found');
+      troop = troopData.members.map((m: any, idx: number) => {
+        const enemyData = content.Enemies[m.enemyId];
+        if (!enemyData) throw new Error(`Enemy ID ${m.enemyId} not found`);
+        const eStats = enemyData.params;
+        return {
+          id: `enemy-${idx}`,
+          templateId: m.enemyId,
+          isEnemy: true,
+          name: enemyData.name,
+          hp: eStats[0],
+          mp: eStats[1],
+          mhp: eStats[0],
+          mmp: eStats[1],
+          atk: eStats[2],
+          def: eStats[3],
+          mat: eStats[4],
+          mdf: eStats[5],
+          agi: eStats[6],
+          luk: eStats[7],
+          isDead: false
+        };
+      });
+    } else {
+      throw new Error('Either troopId or enemyIds must be provided');
+    }
 
     const state: BattleState = {
       id: randomUUID(),

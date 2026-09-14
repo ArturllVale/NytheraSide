@@ -25,11 +25,18 @@ window.NET = window.NET || {};
   BattleManager.setup = function(troopId, canEscape, canLose) {
     _BattleManager_setup.call(this, troopId, canEscape, canLose);
     
-    // Tell server we are starting a battle
-    NET.Client.send({
-      type: 'BATTLE_START_REQ',
-      troopId: troopId
-    });
+    // Tell server we are starting a battle (support both database troopId and dynamic enemyIds)
+    var troop = $dataTroops && $dataTroops[troopId];
+    var payload = {
+      type: 'BATTLE_START_REQ'
+    };
+    if (troop && troop._dynamicEnemyIds && troop._dynamicEnemyIds.length > 0) {
+      payload.enemyIds = troop._dynamicEnemyIds;
+    } else {
+      payload.troopId = troopId;
+    }
+
+    NET.Client.send(payload);
 
     this._netState = 'WAITING';
     this._netEventQueue = [];
@@ -149,11 +156,25 @@ window.NET = window.NET || {};
     }
 
     if (ev.type === 'BATTLE_WON') {
+      if (typeof $gamePlayer !== 'undefined' && $gamePlayer) {
+        $gamePlayer._inBattle = false;
+      }
       this.processVictory();
     }
     if (ev.type === 'BATTLE_LOST') {
+      if (typeof $gamePlayer !== 'undefined' && $gamePlayer) {
+        $gamePlayer._inBattle = false;
+      }
       this.processDefeat();
     }
+  };
+
+  var _BattleManager_endBattle = BattleManager.endBattle;
+  BattleManager.endBattle = function(result) {
+    if (typeof $gamePlayer !== 'undefined' && $gamePlayer) {
+      $gamePlayer._inBattle = false;
+    }
+    _BattleManager_endBattle.call(this, result);
   };
 
   BattleManager.findBattlerById = function(id) {
