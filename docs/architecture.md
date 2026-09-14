@@ -1,7 +1,53 @@
-# Architecture
+# Architecture Overview
 
-NytheraSide is a modular Fastify monolith. The RPG Maker client is presentation and input only; authoritative account, character, battle and persistent state live in the server. Prisma is the persistence boundary. SQLite is the default local provider; PostgreSQL is the production provider. Redis is deliberately optional in local development and is reserved for ephemeral cross-instance concerns.
+NytheraSide is built on an authoritative server architecture paired with an RPG Maker MZ client presentation layer.
 
-The current multiplayer implementation is battle-oriented. Map-world movement, interest management, inventory/equipment mutations and a complete character-select/enter-world protocol are not yet implemented; they must not be represented as completed functionality.
+```
++-------------------------------------------------------------+
+|                     RPG Maker MZ Client                     |
+|  - Presentation, Sprites, Animations, Sound, User Input     |
+|  - Plugins: NET_Client, NET_Auth, NET_BattleBridge,         |
+|             NET_ContentGuard, Nythera_HUD                   |
++-------------------------------------------------------------+
+                              |
+                 REST (HTTP)  |  WebSockets (WSS)
+              /auth, /chars   |  /battle/sync
+                              v
++-------------------------------------------------------------+
+|                Fastify Authoritative Monolith               |
+|  - Fastify 5 + @fastify/websocket 11 + TypeScript           |
+|  - Modules: Auth, Character, Battle, Progress, Content      |
+|  - Battle Engine: Pure deterministic TypeScript engine      |
+|  - Formula Sandbox: isolated-vm sandbox (10ms timeout)      |
+|  - Map & World Sync: Multi-player map state broadcaster     |
++-------------------------------------------------------------+
+                              |
+                              v
++-------------------------------------------------------------+
+|                     Persistence Layer                       |
+|  - Prisma ORM                                               |
+|  - Development: SQLite (server/dev.db)                      |
+|  - Production: PostgreSQL                                   |
++-------------------------------------------------------------+
+```
 
-> Validation note: the checked-in lockfile originally installed `@fastify/websocket` 11 with Fastify 4, which is an incompatible major-version pair. The manifest now requests the Fastify-4-compatible websocket 8 line. The restricted environment could not download that package, so an HTTP bootstrap test could not be run here; reinstall dependencies before running the server.
+---
+
+## 1. Architectural Principles
+
+1. **Server Authority**: The client never calculates damage, experience, gold, item drops, or authoritative character progression. The client sends intents; the server resolves outcomes.
+2. **Deterministic Battle Engine**: Manual and auto-battles share the exact same server-side simulation engine, utilizing seeded RNG and sandbox formula execution via `isolated-vm`.
+3. **Unidirectional Content Flow**: Game design data (classes, enemies, skills, items) originates in the RPG Maker database (`data/*.json`), synced to the server via `tools/content-sync`.
+4. **Resilient Local Development**: Designed for immediate local execution using SQLite (`dev.db`) without requiring Docker or external services.
+
+---
+
+## 2. Monorepo Structure
+
+- **`server/`**: Authoritative backend (Fastify, Prisma, Zod, isolated-vm, WebSocket gateway).
+- **`packages/shared/`**: Shared TypeScript DTOs, schemas, and contract interfaces.
+- **`packages/content-schema/`**: Schemas, parsers, and sanitizers for RPG Maker data.
+- **`tools/content-sync/`**: Sync tool and watcher for RPG Maker data updates.
+- **`js/plugins/`**: Custom RPG Maker MZ networking and UI plugins.
+- **`data/`**: RPG Maker MZ database files (JSON).
+- **`run_game.py`**: Local HTTP server and auto-browser launcher for client playtesting.

@@ -1,56 +1,91 @@
 # NytheraSide
 
-Um RPG Idle/MMO-lite com cliente no **RPG Maker MV** e servidor autoritário em **Node.js/Fastify**. O cliente roda apenas animações visuais, toda a lógica de batalha e progresso é gerenciada no backend.
-
-## Pré-requisitos
-- Node.js 20+
-- RPG Maker MV/MZ-compatible project runtime for the first client test (not validated in this environment)
-
-SQLite is the default development database. PostgreSQL and Redis are **not** required to boot locally.
-
-## 🚀 Backend local (SQLite)
-
-```bash
-npm install
-cp .env.development.example .env
-npm run db:generate:sqlite --workspace=server
-npm run db:migrate:sqlite --workspace=server
-npm run dev --workspace=server
-```
-
-The API listens on `http://localhost:3000`; check `GET /health` and `GET /ready`.
-
-For the first RPG Maker test, import and publish content with the configured admin key, register/login through the REST API, then use the emitted session token in the current `NET_Auth` prompt. The client integration has **not** been executed end-to-end yet.
-
-Production PostgreSQL setup, migration caveats and all current limitations are documented in `docs/`.
-
-## 🎮 Como Configurar o Cliente (RPG Maker MV)
-
-1. Os plugins de rede estão em `js/plugins`.
-2. Para que o jogo funcione, adicione os plugins na lista do Gerenciador de Plugins (Plugin Manager) do RPG Maker MV na seguinte **ordem exata**:
-   - `NET_Client`
-   - `NET_Auth`
-   - `NET_BattleBridge`
-   - `NET_ContentGuard`
-3. O servidor precisa estar rodando. Ao iniciar o jogo localmente, o `NET_Auth` vai pedir seu Token de Sessão (que pode ser obtido enviando um POST para `/auth/login` no backend).
+RPG Idle/MMO-lite com apresentação visual em **RPG Maker MZ** e backend autoritativo de alta performance em **Node.js / Fastify** com **Prisma**. O cliente é responsável pela renderização, efeitos e inputs, enquanto toda a lógica de combate, progressão, movimentação e economia é validada e gerenciada no servidor.
 
 ---
 
-## 🛠️ Estrutura do Monorepo
+## ⚡ Início Rápido (Ambiente de Desenvolvimento)
 
-- `server`: Servidor autoritário (Fastify, Prisma, Zod, isolated-vm, WebSockets).
-- repository root (RPG Maker project): O cliente jogo (arquivos do RPG Maker MV + plugins de rede customizados).
-- `packages/shared`: DTOs (Data Transfer Objects) e Tipos compartilhados.
-- `packages/content-schema`: Normalizadores e Validadores dos arquivos de dados (JSON) do RPG Maker.
+### 1. Pré-requisitos
+- **Node.js 20+**
+- **Python 3.8+** (para executar o launcher do cliente de testes)
 
-## 🧪 Testes
-
-Testar todos os pacotes:
+### 2. Iniciar o Backend (SQLite Local)
 ```bash
-npm run test --workspaces
+# 1. Configurar variáveis de ambiente na raiz
+cp .env.development.example .env
+
+# 2. Acessar a pasta do servidor e instalar dependências
+cd server
+npm install
+
+# 3. Gerar Prisma Client e aplicar migrações no banco SQLite local (dev.db)
+npm run db:generate:sqlite
+npm run db:migrate:sqlite
+
+# 4. Iniciar servidor Fastify com recarregamento automático
+npm run dev
+```
+O servidor estará escutando em `http://localhost:3000`. Verifique o status em `GET /health`.
+
+### 3. Iniciar o Jogo (Cliente RPG Maker MZ)
+Em outro terminal na raiz do projeto:
+```bash
+python run_game.py
+```
+O script iniciará um servidor HTTP local na porta `8000` com headers anti-cache e abrirá o navegador automaticamente no jogo.
+
+---
+
+## 🎮 Funcionalidades do Cliente e Interface
+
+- **Interface In-Game (Dark Glassmorphism)**: Telas integradas de Login, Registro, Criação e Seleção de Heróis com visual escuro, acentos dourados e auras luminosas.
+- **Criação de Personagens (3 Etapas)**:
+  1. **Escolha de Classe**: Seleção com cards e ícones estilizados.
+  2. **Aparência**: Renderização do sprite em canvas com botão de rotação 360° em tempo real (`↻`).
+  3. **Confirmação e Nome**: Campo de texto com validação e detecção de nomes duplicados.
+- **Seleção de Personagens**:
+  - Grid com até 4 heróis salvos por conta.
+  - Pré-visualização de sprites, nível, classe e mapa atual.
+  - Opções para entrar no jogo ou deletar personagem com segurança.
+- **HUD Integrada (`Nythera_HUD`)**: Barras de vida, mana, experiência, dados do herói e minimapa.
+- **Sincronização Multiplayer**: Posições e direções de jogadores sincronizadas em tempo real via WebSocket (`/battle/sync`).
+
+---
+
+## 🛠️ Estrutura do Repositório
+
+```
+NytheraSide/
+├── server/               # Servidor autoritativo (Fastify 5, Prisma, WebSockets, Zod)
+├── packages/
+│   ├── shared/           # DTOs, schemas de validação e tipos compartilhados
+│   └── content-schema/   # Schemas e validadores dos dados do RPG Maker
+├── tools/
+│   └── content-sync/     # Ferramenta e watcher de sincronização do banco de dados do MZ
+├── data/                 # Banco de dados do RPG Maker MZ (Classes, Skills, Enemies, etc.)
+├── js/plugins/           # Plugins customizados de rede e UI (NET_*, Nythera_HUD)
+├── docs/                 # Documentação detalhada da arquitetura e protocolos
+└── run_game.py           # Servidor e inicializador do cliente
 ```
 
-Testar apenas a engine de batalha em isolamento:
+---
+
+## 🧪 Testes Automatizados
+
+Executar todos os testes unitários e de integração do backend:
 ```bash
-npm run test --workspace=apps/server
+npm --prefix server test
+# ou: cd server && npm test
 ```
+*(Executa a suíte de testes Vitest isolada usando `server/test.db`)*
+
+---
+
+## 📚 Documentação Adicional
+
+- [Arquitetura Geral](docs/architecture.md)
+- [Protocolo WebSocket em Tempo Real](docs/protocol.md)
+- [Autenticação e Ciclo de Vida do Personagem](docs/authentication.md)
+- [Pipeline de Conteúdo e Fórmulas](docs/content-pipeline.md)
+- [Configuração de Banco de Dados (SQLite & PostgreSQL)](docs/database.md)
