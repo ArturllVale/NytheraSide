@@ -892,9 +892,15 @@
     // Desativar botão de menu touch padrão na tela do mapa
     Scene_Map.prototype.createMenuButton = function() {};
 
-    // Desativar abertura do menu pelo botão direito do mouse no mapa (apenas tecla de menu/ESC)
+    // Desativar completamente abertura do menu por qualquer tecla (X, ESC, etc.), clique ou touch
     Scene_Map.prototype.isMenuCalled = function() {
-        return Input.isTriggered("menu");
+        return false;
+    };
+    Scene_Map.prototype.isMenuEnabled = function() {
+        return false;
+    };
+    Scene_Map.prototype.updateCallMenu = function() {
+        this.menuCalling = false;
     };
 
     // Desativar corrida / dash com Shift (movimento padrão fixo estilo MMORPG)
