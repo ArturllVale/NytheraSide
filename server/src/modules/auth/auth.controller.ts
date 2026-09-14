@@ -24,6 +24,11 @@ export class AuthController {
     const { email, password } = parseResult.data;
 
     try {
+      const ipAttempts = await rateLimiter.increment(`register_ip:${request.ip}`, 900);
+      if (ipAttempts > 20) {
+        reply.status(429).send({ success: false, error: 'Too many registration attempts, try again later' });
+        return;
+      }
       const attemptsKey = `register_attempts:${email}`;
       const attemptCount = await rateLimiter.increment(attemptsKey, 900);
       if (attemptCount > 5) {
@@ -65,6 +70,11 @@ export class AuthController {
     request.log.info({ email }, 'Tentativa de login recebida');
 
     try {
+      const ipAttempts = await rateLimiter.increment(`login_ip:${request.ip}`, 900);
+      if (ipAttempts > 30) {
+        reply.status(429).send({ success: false, error: 'Too many login attempts, try again later' });
+        return;
+      }
       const result = await this.authService.login(email, password);
       request.log.info({ email, userId: result.user.id }, 'Login realizado com sucesso');
       reply.send({ success: true, data: result });
@@ -132,6 +142,11 @@ export class AuthController {
     const days = typeof body.days === 'number' ? body.days : 7;
 
     try {
+      const requester = await this.authService.getUserById(userId);
+      if (requester.role !== 'admin') {
+        reply.status(403).send({ success: false, error: 'Admin authorization required' });
+        return;
+      }
       const result = await this.authService.updateVipStatus(userId, action, days);
       reply.send(result);
     } catch (error: any) {

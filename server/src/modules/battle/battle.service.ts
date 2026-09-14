@@ -159,9 +159,10 @@ export class BattleService {
       }
     }
 
-    // Save state
-    await prisma.battle.update({
-      where: { id: battleId },
+    // Optimistic compare-and-swap prevents two websocket commands from both
+    // applying against the same snapshot when requests race.
+    const saved = await prisma.battle.updateMany({
+      where: { id: battleId, status: 'ACTIVE', state_snapshot: battle.state_snapshot },
       data: {
         side_party: JSON.stringify(engine.state.party),
         side_troop: JSON.stringify(engine.state.troop),
@@ -170,6 +171,7 @@ export class BattleService {
         updated_at: new Date()
       },
     });
+    if (saved.count !== 1) throw new Error('Battle state changed; retry command');
 
     // Handle end of battle rewards if won
     if (engine.state.status === 'WON') {

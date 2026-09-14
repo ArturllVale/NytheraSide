@@ -26,6 +26,9 @@ model Session {
   created_at DateTime @default(now())
 
   user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([expires_at])
 }
 
 model ContentVersion {
@@ -74,6 +77,8 @@ model Character {
   user              User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
   battles           Battle[]
   idle_state        CharacterIdleState?
+
+  @@index([user_id, created_at])
 }
 
 model Battle {
@@ -89,6 +94,8 @@ model Battle {
   updated_at      DateTime @updatedAt
 
   character       Character @relation(fields: [character_id], references: [id], onDelete: Cascade)
+
+  @@index([character_id, status])
 }
 
 model CharacterIdleState {

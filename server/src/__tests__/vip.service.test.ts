@@ -59,7 +59,7 @@ describe('VIP and Role System', () => {
     });
   });
 
-  it('should assign role "normal" to standard users and "admin" to test/admin emails', async () => {
+  it('should never derive administrative privileges from an email address', async () => {
     const authService = new AuthService();
 
     const normalUser = await authService.register(normalEmail, password);
@@ -69,14 +69,14 @@ describe('VIP and Role System', () => {
     normalUserId = normalUser.id;
 
     const testUser = await authService.register(testEmail, password);
-    expect(testUser.role).toBe('admin');
-    expect(testUser.isVip).toBe(true);
-    expect(getUserMaxSlots(testUser)).toBe(6);
+    expect(testUser.role).toBe('normal');
+    expect(testUser.isVip).toBe(false);
+    expect(getUserMaxSlots(testUser)).toBe(4);
 
     const adminUser = await authService.register(adminEmail, password);
-    expect(adminUser.role).toBe('admin');
-    expect(adminUser.isVip).toBe(true);
-    expect(getUserMaxSlots(adminUser)).toBe(6);
+    expect(adminUser.role).toBe('normal');
+    expect(adminUser.isVip).toBe(false);
+    expect(getUserMaxSlots(adminUser)).toBe(4);
     adminUserId = adminUser.id;
   });
 
