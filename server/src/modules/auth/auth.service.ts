@@ -15,15 +15,12 @@ export class AuthService {
     }
 
     const passwordHash = await argon2.hash(password);
-    const normalizedEmail = email.toLowerCase();
-    const role = (normalizedEmail.includes('teste') || normalizedEmail.includes('admin')) ? 'admin' : 'normal';
-
     const user = await prisma.user.create({
       data: {
         id: randomUUID(),
         email,
         password_hash: passwordHash,
-        role,
+        role: 'normal',
       }
     });
 
@@ -45,14 +42,12 @@ export class AuthService {
     let user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       if (password && password.length >= 8) {
-        const normalizedEmail = email.toLowerCase();
-        const role = (normalizedEmail.includes('teste') || normalizedEmail.includes('admin')) ? 'admin' : 'normal';
         user = await prisma.user.create({
           data: {
             id: randomUUID(),
             email,
             password_hash: await argon2.hash(password),
-            role,
+            role: 'normal',
           }
         });
       } else {
