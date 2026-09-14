@@ -28,6 +28,10 @@ export function loadConfig() {
   const nodeEnv = process.env.NODE_ENV ?? 'development';
   const redisEnabled = boolean('REDIS_ENABLED', nodeEnv === 'production');
   if (redisEnabled && !process.env.REDIS_URL) throw new Error('REDIS_URL is required when REDIS_ENABLED=true');
+
+  const redisRequired = nodeEnv === 'production' ? true : boolean('REDIS_REQUIRED', false);
+  if (redisRequired && !process.env.REDIS_URL) throw new Error('REDIS_URL is required when REDIS_REQUIRED=true (or in production)');
+
   return {
     nodeEnv,
     host: process.env.HOST ?? '0.0.0.0',
@@ -35,7 +39,7 @@ export function loadConfig() {
     databaseProvider,
     databaseUrl,
     redisEnabled,
-    redisRequired: boolean('REDIS_REQUIRED', false),
+    redisRequired,
     redisUrl: process.env.REDIS_URL,
     adminApiKey: process.env.ADMIN_API_KEY,
   };
