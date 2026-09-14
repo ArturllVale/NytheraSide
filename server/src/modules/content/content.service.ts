@@ -1,5 +1,7 @@
 import { prisma } from '../../infra/prisma';
 import { randomUUID, createHash } from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 function computeHash(payload: unknown): string {
   const payloadString = JSON.stringify(payload);
@@ -7,6 +9,39 @@ function computeHash(payload: unknown): string {
 }
 
 export class ContentService {
+  private async autoSeedInitialContent() {
+    const candidatePaths = [
+      path.join(process.cwd(), '..', 'data'),
+      path.join(process.cwd(), 'data'),
+      path.join(process.cwd(), 'www', 'data'),
+      path.join(process.cwd(), '..', 'www', 'data'),
+    ];
+    const dataDir = candidatePaths.find((p) => fs.existsSync(p));
+    const payload: Record<string, any> = {};
+
+    if (dataDir) {
+      const files = [
+        'Actors.json', 'Classes.json', 'Skills.json', 'Items.json',
+        'Weapons.json', 'Armors.json', 'Enemies.json', 'Troops.json',
+        'States.json', 'System.json'
+      ];
+      for (const file of files) {
+        const filePath = path.join(dataDir, file);
+        if (fs.existsSync(filePath)) {
+          const key = file.replace('.json', '');
+          try {
+            payload[key] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+          } catch {
+            payload[key] = [];
+          }
+        }
+      }
+    }
+
+    await this.importDraft(payload);
+    return await this.publishLatestDraft();
+  }
+
   async importDraft(payload: Record<string, any>) {
     const hash = computeHash(payload);
     const id = randomUUID();
@@ -62,9 +97,20 @@ export class ContentService {
   }
 
   async getActiveContent() {
-    const active = await prisma.contentActive.findFirst({
+    let active = await prisma.contentActive.findFirst({
       include: { version: true },
     });
+
+    if (!active || !active.version) {
+      try {
+        await this.autoSeedInitialContent();
+        active = await prisma.contentActive.findFirst({
+          include: { version: true },
+        });
+      } catch {
+        // Fall through
+      }
+    }
 
     if (!active || !active.version) {
       throw new Error('No active content version');

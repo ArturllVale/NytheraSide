@@ -116,11 +116,20 @@ export default async function battleGateway(fastify: FastifyInstance) {
             throw new Error('Sessão inválida ou expirada');
           }
           
-          const char = await prisma.character.findFirst({ where: { user_id: session.user_id } });
+          let char = null;
+          if (payload.characterId) {
+            char = await prisma.character.findFirst({ where: { id: payload.characterId, user_id: session.user_id } });
+          }
+          if (!char) {
+            char = await prisma.character.findFirst({ where: { user_id: session.user_id }, orderBy: { created_at: 'asc' } });
+          }
           if (!char) {
             throw new Error('Nenhum personagem encontrado para este usuário');
           }
           
+          let baseStats: any = {};
+          try { baseStats = JSON.parse(char.base_stats); } catch (e) {}
+
           characterId = char.id;
           currentMapId = char.map_id;
           lastX = char.position_x;
@@ -133,10 +142,13 @@ export default async function battleGateway(fastify: FastifyInstance) {
             character: {
               id: char.id,
               name: char.name,
+              actorTemplateId: char.actor_template_id,
               mapId: char.map_id,
               x: char.position_x,
               y: char.position_y,
-              direction: char.direction
+              direction: char.direction,
+              characterName: baseStats?.actor?.characterName || 'Actor1',
+              characterIndex: baseStats?.actor?.characterIndex ?? 0,
             }
           }));
           return;

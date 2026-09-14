@@ -73,32 +73,60 @@ describe('CharacterService', () => {
 
   it('should not create a character with unknown actor template id', async () => {
     const characterService = new CharacterService();
-    await expect(characterService.createCharacter(userId, 999, name)).rejects.toMatchObject({
+    await expect(characterService.createCharacter(userId, 999, 'Invalid Template')).rejects.toMatchObject({
       code: ErrorCodes.CHARACTER_ACTOR_NOT_FOUND,
+    });
+  });
+
+  it('should reject creating character with duplicate name', async () => {
+    const characterService = new CharacterService();
+    await expect(characterService.createCharacter(userId, actorTemplateId, name)).rejects.toMatchObject({
+      code: 'CHARACTER_NAME_TAKEN',
     });
   });
 
   it('should get characters by user id', async () => {
     const characterService = new CharacterService();
-    await characterService.createCharacter(userId, actorTemplateId, name);
+    await characterService.createCharacter(userId, actorTemplateId, 'Warrior Two');
     const characters = await characterService.getCharactersByUserId(userId);
-    expect(characters.length).toBeGreaterThan(0);
-    expect(characters[characters.length - 1].name).toBe(name);
+    expect(characters.length).toBeGreaterThan(1);
+    expect(characters.some(c => c.name === 'Warrior Two')).toBe(true);
   });
 
   it('should get a character by id', async () => {
     const characterService = new CharacterService();
-    const created = await characterService.createCharacter(userId, actorTemplateId, name);
+    const created = await characterService.createCharacter(userId, actorTemplateId, 'Warrior Three');
     const fetched = await characterService.getCharacterById(created.id, userId);
     expect(fetched.id).toBe(created.id);
-    expect(fetched.name).toBe(name);
+    expect(fetched.name).toBe('Warrior Three');
   });
 
   it('should not get a character by id for another user', async () => {
     const characterService = new CharacterService();
-    const created = await characterService.createCharacter(userId, actorTemplateId, name);
+    const created = await characterService.createCharacter(userId, actorTemplateId, 'Warrior Four');
     await expect(characterService.getCharacterById(created.id, 'different-user-id')).rejects.toMatchObject({
       code: ErrorCodes.CHARACTER_NOT_FOUND,
     });
+  });
+
+  it('should delete a character', async () => {
+    const characterService = new CharacterService();
+    const toDelete = await characterService.createCharacter(userId, actorTemplateId, 'To Delete');
+    const deleteRes = await characterService.deleteCharacter(toDelete.id, userId);
+    expect(deleteRes.success).toBe(true);
+    await expect(characterService.getCharacterById(toDelete.id, userId)).rejects.toMatchObject({
+      code: ErrorCodes.CHARACTER_NOT_FOUND,
+    });
+  });
+
+  it('should return mzData with classes, actors, and maps', async () => {
+    const characterService = new CharacterService();
+    const mzData = await characterService.getMzData();
+    expect(mzData).toHaveProperty('classes');
+    expect(mzData).toHaveProperty('actors');
+    expect(mzData).toHaveProperty('maps');
+    expect(Array.isArray(mzData.classes)).toBe(true);
+    expect(Array.isArray(mzData.actors)).toBe(true);
+    expect(Array.isArray(mzData.maps)).toBe(true);
   });
 });

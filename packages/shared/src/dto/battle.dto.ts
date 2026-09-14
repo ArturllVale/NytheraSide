@@ -43,7 +43,8 @@ import { MapMoveRequestSchema, MapUpdateResponseSchema } from './map.dto';
 export const BattleWsClientPayloadSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('AUTH_REQ'),
-    token: z.string()
+    token: z.string(),
+    characterId: z.string().optional()
   }),
   z.object({
     type: z.literal('BATTLE_START_REQ'),

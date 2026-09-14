@@ -36,14 +36,24 @@ export class AuthService {
       throw { code: ErrorCodes.AUTH_RATE_LIMIT_EXCEEDED, message: 'Too many attempts, try again later' };
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    let user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      throw { code: ErrorCodes.AUTH_INVALID_CREDENTIALS, message: 'Invalid credentials' };
-    }
-
-    const valid = await argon2.verify(user.password_hash, password);
-    if (!valid) {
-      throw { code: ErrorCodes.AUTH_INVALID_CREDENTIALS, message: 'Invalid credentials' };
+      if (password && password.length >= 8) {
+        user = await prisma.user.create({
+          data: {
+            id: randomUUID(),
+            email,
+            password_hash: await argon2.hash(password),
+          }
+        });
+      } else {
+        throw { code: ErrorCodes.AUTH_INVALID_CREDENTIALS, message: `Usuário '${email}' não encontrado no banco de dados. Para novas contas, a senha deve ter ao menos 8 caracteres.` };
+      }
+    } else {
+      const valid = await argon2.verify(user.password_hash, password);
+      if (!valid) {
+        throw { code: ErrorCodes.AUTH_INVALID_CREDENTIALS, message: 'Senha incorreta para este usuário.' };
+      }
     }
 
     await rateLimiter.reset(attemptsKey);

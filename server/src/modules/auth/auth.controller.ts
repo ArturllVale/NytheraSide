@@ -62,13 +62,16 @@ export class AuthController {
       return;
     }
     const { email, password } = parseResult.data;
+    request.log.info({ email }, 'Tentativa de login recebida');
 
     try {
       const result = await this.authService.login(email, password);
+      request.log.info({ email, userId: result.user.id }, 'Login realizado com sucesso');
       reply.send({ success: true, data: result });
     } catch (error) {
       const code = (error as { code?: string }).code;
       if (code === ErrorCodes.AUTH_INVALID_CREDENTIALS || code === ErrorCodes.AUTH_RATE_LIMIT_EXCEEDED) {
+        request.log.warn({ email, errMessage: (error as Error).message }, 'Falha na autenticação do login');
         reply.status(code === ErrorCodes.AUTH_RATE_LIMIT_EXCEEDED ? 429 : 401).send({
           success: false,
           error: (error as Error).message,

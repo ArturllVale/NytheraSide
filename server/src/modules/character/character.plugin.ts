@@ -21,6 +21,15 @@ const characterPlugin: FastifyPluginAsync = async (fastify) => {
     { preHandler: [authMiddleware] },
     characterController.getCharacterById.bind(characterController)
   );
+  fastify.delete(
+    '/characters/:id',
+    { preHandler: [authMiddleware] },
+    characterController.deleteCharacter.bind(characterController)
+  );
+
+  // Public endpoint for RPG Maker MZ game data (classes, heroes/actors, maps)
+  fastify.get('/game/mzdata', characterController.getMzData.bind(characterController));
+  fastify.get('/characters/mzdata', characterController.getMzData.bind(characterController));
 };
 
 export default fp(characterPlugin, { name: 'character' });

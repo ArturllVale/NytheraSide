@@ -1,4 +1,6 @@
 import { randomUUID } from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import { ContentService } from '../content/content.service';
 import { ErrorCodes } from '@nythera/shared';
 import { prisma } from '../../infra/prisma';
@@ -10,17 +12,55 @@ export class CharacterService {
     this.contentService = new ContentService();
   }
 
-  // Helper to get active content payload
-  private async getActiveContent() {
-    const { payload } = await this.contentService.getActiveContent();
-    return payload;
+  // Helper to locate the RPG Maker MZ data folder
+  private getMzDataDir(): string {
+    const candidatePaths = [
+      path.resolve(process.cwd(), '..', 'data'),
+      path.resolve(process.cwd(), 'data'),
+      path.resolve(__dirname, '../../../../data'),
+      path.resolve(__dirname, '../../../data'),
+    ];
+
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p) && fs.existsSync(path.join(p, 'Actors.json'))) {
+        return p;
+      }
+    }
+
+    return candidatePaths[0];
+  }
+
+  // Helper to get active content payload with fallback to raw MZ data files
+  private async getActiveContent(): Promise<any> {
+    try {
+      const { payload } = await this.contentService.getActiveContent();
+      if (payload && payload.Actors && payload.Classes) {
+        return payload;
+      }
+    } catch {
+      // Fall through to file fallback
+    }
+
+    const dataDir = this.getMzDataDir();
+    try {
+      const actorsRaw = JSON.parse(fs.readFileSync(path.join(dataDir, 'Actors.json'), 'utf-8')) as any[];
+      const classesRaw = JSON.parse(fs.readFileSync(path.join(dataDir, 'Classes.json'), 'utf-8')) as any[];
+      return {
+        Actors: actorsRaw.filter((a) => a !== null),
+        Classes: classesRaw.filter((c) => c !== null),
+      };
+    } catch {
+      return { Actors: [], Classes: [] };
+    }
   }
 
   // Validate that actorTemplateId exists in the active content's Actors array
   private async validateActorTemplateId(actorTemplateId: number, actors: any[]) {
-    // Actors array is 1-based, with index 0 being null in the raw RM data.
-    // But our normalizer filters out nulls, so the array index is actorTemplateId - 1.
-    const actor = actors[actorTemplateId - 1];
+    // Check by id property first (1-based RM ID) or array index
+    let actor = actors.find((a) => a && a.id === actorTemplateId);
+    if (!actor) {
+      actor = actors[actorTemplateId - 1];
+    }
     if (!actor) {
       throw { code: ErrorCodes.CHARACTER_ACTOR_NOT_FOUND, message: `Actor template with id ${actorTemplateId} not found` };
     }
@@ -29,7 +69,10 @@ export class CharacterService {
 
   // Validate that classTemplateId exists in the active content's Classes array
   private async validateClassTemplateId(classTemplateId: number, classes: any[]) {
-    const cls = classes[classTemplateId - 1];
+    let cls = classes.find((c) => c && c.id === classTemplateId);
+    if (!cls) {
+      cls = classes[classTemplateId - 1];
+    }
     if (!cls) {
       throw { code: ErrorCodes.CHARACTER_CLASS_NOT_FOUND, message: `Class template with id ${classTemplateId} not found` };
     }
@@ -38,11 +81,6 @@ export class CharacterService {
 
   // Snapshot base stats from actor and class
   private snapshotBaseStats(actor: any, cls: any) {
-    // Snapshot the stats needed for battle from actor and class data.
-    // In RPG Maker MV, the Class holds the param curves (params[paramId][level]).
-    // We compute level-1 stats from the class's params array.
-    // cls.params is a 2D array: cls.params[paramId][level] = base value at that level.
-    // paramId: 0=HP, 1=MP, 2=ATK, 3=DEF, 4=MAT, 5=MDF, 6=AGI, 7=LUK
     const level = (actor.initialLevel || actor.level || 1);
     const params: number[] = [];
     if (cls.params && Array.isArray(cls.params)) {
@@ -50,7 +88,6 @@ export class CharacterService {
         params.push(cls.params[i]?.[level] ?? 0);
       }
     } else {
-      // Fallback if cls.params is unavailable
       params.push(500, 40, 20, 20, 20, 20, 20, 20); // sensible defaults
     }
 
@@ -61,8 +98,9 @@ export class CharacterService {
         nickname: actor.nickname || '',
         profile: actor.profile || '',
         classId: actor.classId,
+        characterName: actor.characterName || 'Actor1',
+        characterIndex: actor.characterIndex !== undefined ? actor.characterIndex : 0,
         initialLevel: level,
-        // params[0..7] at snapshot level — used directly by BattleService
         params,
       },
       class: {
@@ -73,20 +111,67 @@ export class CharacterService {
     };
   }
 
+  async getMzData() {
+    const dataDir = this.getMzDataDir();
+    const classesRaw = JSON.parse(fs.readFileSync(path.join(dataDir, 'Classes.json'), 'utf-8')) as any[];
+    const actorsRaw = JSON.parse(fs.readFileSync(path.join(dataDir, 'Actors.json'), 'utf-8')) as any[];
+    const mapInfosRaw = JSON.parse(fs.readFileSync(path.join(dataDir, 'MapInfos.json'), 'utf-8')) as any[];
+
+    // Check if any class has <class: active>
+    const hasActiveClassTag = classesRaw.some((c) => c && c.note && c.note.includes('<class: active>'));
+    const activeClasses = classesRaw
+      .filter((c) => c !== null && (!hasActiveClassTag || (c.note && c.note.includes('<class: active>'))))
+      .map((c) => ({ id: c.id, name: c.name, note: c.note || '' }));
+
+    // Check if any actor has <hero: active>
+    const hasActiveHeroTag = actorsRaw.some((a) => a && a.note && a.note.includes('<hero: active>'));
+    const activeActors = actorsRaw
+      .filter((a) => a !== null && (!hasActiveHeroTag || (a.note && a.note.includes('<hero: active>'))))
+      .map((a) => ({
+        id: a.id,
+        name: a.name,
+        classId: a.classId,
+        characterName: a.characterName,
+        characterIndex: a.characterIndex,
+        faceName: a.faceName || '',
+        faceIndex: a.faceIndex || 0,
+        profile: a.profile || '',
+      }));
+
+    const mapInfos = mapInfosRaw.filter((m) => m !== null).map((m) => ({
+      id: m.id,
+      name: m.name,
+    }));
+
+    return { classes: activeClasses, actors: activeActors, maps: mapInfos };
+  }
+
   async createCharacter(userId: string, actorTemplateId: number, name: string) {
+    const trimmedName = (name || '').trim();
+    if (!trimmedName || trimmedName.length < 2) {
+      throw { code: 'INVALID_CHARACTER_NAME', message: 'O nome do personagem deve ter pelo menos 2 caracteres.' };
+    }
+    if (trimmedName.length > 20) {
+      throw { code: 'INVALID_CHARACTER_NAME', message: 'O nome do personagem deve ter no máximo 20 caracteres.' };
+    }
+
     // Get active content
-    const payload = await this.getActiveContent() as any;
+    const payload = await this.getActiveContent();
     const actors = payload.Actors || [];
     const classes = payload.Classes || [];
 
     // Validate actor template exists
     const actor = await this.validateActorTemplateId(actorTemplateId, actors);
 
-    // We need to get the class of the actor to snapshot class stats as well.
-    // In RM MV, actor has a classId that points to the Classes array.
-    const classTemplateId = actor.classId;
     // Validate class template exists
+    const classTemplateId = actor.classId;
     const cls = await this.validateClassTemplateId(classTemplateId, classes);
+
+    // Check unique character name
+    const existing = await prisma.character.findFirst({ where: { name: trimmedName } });
+    if (existing) {
+      throw { code: 'CHARACTER_NAME_TAKEN', message: 'Este nome de herói já está em uso.' };
+    }
 
     // Snapshot base stats
     const baseStats = this.snapshotBaseStats(actor, cls);
@@ -97,24 +182,39 @@ export class CharacterService {
         id: randomUUID(),
         user_id: userId,
         actor_template_id: actorTemplateId,
-        name,
-        base_stats: JSON.stringify(baseStats), // We'll store as JSON string in jsonb column
+        name: trimmedName,
+        base_stats: JSON.stringify(baseStats),
       }
     });
 
-    // We'll parse the base_stats back to object for return
+    const parsedStats = JSON.parse(character.base_stats);
     return {
       ...character,
-      base_stats: JSON.parse(character.base_stats),
+      actorTemplateId: character.actor_template_id,
+      characterName: parsedStats?.actor?.characterName || 'Actor1',
+      characterIndex: parsedStats?.actor?.characterIndex ?? 0,
+      className: parsedStats?.class?.name || 'Aventureiro',
+      base_stats: parsedStats,
     };
   }
 
   async getCharactersByUserId(userId: string) {
-    const result = await prisma.character.findMany({ where: { user_id: userId } });
-    return result.map(char => ({
-      ...char,
-      base_stats: JSON.parse(char.base_stats),
-    }));
+    const result = await prisma.character.findMany({
+      where: { user_id: userId },
+      orderBy: { created_at: 'asc' },
+    });
+
+    return result.map(char => {
+      const parsedStats = JSON.parse(char.base_stats);
+      return {
+        ...char,
+        actorTemplateId: char.actor_template_id,
+        characterName: parsedStats?.actor?.characterName || 'Actor1',
+        characterIndex: parsedStats?.actor?.characterIndex ?? 0,
+        className: parsedStats?.class?.name || 'Aventureiro',
+        base_stats: parsedStats,
+      };
+    });
   }
 
   async getCharacterById(id: string, userId: string) {
@@ -122,9 +222,24 @@ export class CharacterService {
     if (!result) {
       throw { code: ErrorCodes.CHARACTER_NOT_FOUND, message: 'Character not found' };
     }
+    const parsedStats = JSON.parse(result.base_stats);
     return {
       ...result,
-      base_stats: JSON.parse(result.base_stats),
+      actorTemplateId: result.actor_template_id,
+      characterName: parsedStats?.actor?.characterName || 'Actor1',
+      characterIndex: parsedStats?.actor?.characterIndex ?? 0,
+      className: parsedStats?.class?.name || 'Aventureiro',
+      base_stats: parsedStats,
     };
   }
+
+  async deleteCharacter(characterId: string, userId: string) {
+    const character = await prisma.character.findFirst({ where: { id: characterId, user_id: userId } });
+    if (!character) {
+      throw { code: ErrorCodes.CHARACTER_NOT_FOUND, message: 'Personagem não encontrado' };
+    }
+    await prisma.character.delete({ where: { id: characterId } });
+    return { success: true };
+  }
 }
+

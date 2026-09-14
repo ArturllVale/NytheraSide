@@ -43,7 +43,9 @@ NET.Client = NET.Client || {};
   $.onOpen = function() {
     console.log('[NET_Client] Connected');
     if (this.token) {
-      this.send({ type: 'AUTH_REQ', token: this.token });
+      var authPayload = { type: 'AUTH_REQ', token: this.token };
+      if (this.characterId) authPayload.characterId = this.characterId;
+      this.send(authPayload);
     }
   };
 
