@@ -6,13 +6,14 @@
     "build": "tsc",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src"
   },
   "devDependencies": {
     "@types/lodash.debounce": "^4.0.9",
     "@types/node": "^20.19.0",
     "tsx": "^4.23.1",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^1.6.0"
   },
   "dependencies": {
     "axios": "^1.20.0",

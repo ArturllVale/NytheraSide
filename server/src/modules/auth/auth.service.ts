@@ -39,7 +39,7 @@ export class AuthService {
       throw { code: ErrorCodes.AUTH_RATE_LIMIT_EXCEEDED, message: 'Too many attempts, try again later' };
     }
 
-    let user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       throw { code: ErrorCodes.AUTH_INVALID_CREDENTIALS, message: 'Credenciais inválidas' };
     }
