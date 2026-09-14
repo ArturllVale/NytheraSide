@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest } from 'fastify';
 import { BattleService } from './battle.service';
-import { BattleWsPayloadSchema, MapPlayer } from '@nythera/shared';
+import { AuthService } from '../auth/auth.service';
+import { BattleWsPayloadSchema, MapPlayer, isUserVip } from '@nythera/shared';
 import { prisma } from '../../infra/prisma';
 
 // Estado global do mapa para o MVP
@@ -9,6 +10,7 @@ const mapState = new Map<number, Map<string, MapPlayer & { socket: any }>>();
 
 export default async function battleGateway(fastify: FastifyInstance) {
   const battleService = new BattleService();
+  const authService = new AuthService();
 
   fastify.get('/sync', { websocket: true }, (connection, req: FastifyRequest) => {
     let characterId: string | null = null;
@@ -136,6 +138,9 @@ export default async function battleGateway(fastify: FastifyInstance) {
           lastY = char.position_y;
           lastDir = char.direction;
 
+          const user = await prisma.user.findUnique({ where: { id: session.user_id } });
+          const isVip = user ? isUserVip(user) : false;
+
           socket.send(JSON.stringify({
             type: 'AUTH_RES',
             success: true,
@@ -149,6 +154,11 @@ export default async function battleGateway(fastify: FastifyInstance) {
               direction: char.direction,
               characterName: baseStats?.actor?.characterName || 'Actor1',
               characterIndex: baseStats?.actor?.characterIndex ?? 0,
+            },
+            user: {
+              role: user?.role || 'normal',
+              isVip,
+              vipUntil: user?.vip_until ? user.vip_until.toISOString() : null,
             }
           }));
           return;
@@ -223,6 +233,21 @@ export default async function battleGateway(fastify: FastifyInstance) {
 
           fastify.log.info({ characterId, mapId: currentMapId, x: payload.payload.x, y: payload.payload.y }, '[MapSync] MAP_MOVE_REQ received');
           broadcastMapUpdate(currentMapId);
+        }
+        else if (payload.type === 'CMD_VIP_REQ') {
+          const char = await prisma.character.findUnique({ where: { id: characterId } });
+          if (!char) throw new Error('Personagem não encontrado');
+
+          const vipInfo = await authService.updateVipStatus(char.user_id, payload.action, payload.days || 7);
+          
+          socket.send(JSON.stringify({
+            type: 'CMD_VIP_RES',
+            success: true,
+            role: vipInfo.role,
+            isVip: vipInfo.isVip,
+            vipUntil: vipInfo.vipUntil,
+            message: payload.action === 1 ? `Status VIP concedido (+${payload.days || 7} dias)!` : 'Status VIP revogado.'
+          }));
         }
       } catch (err: any) {
         if (socket.readyState === 1) {

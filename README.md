@@ -10,6 +10,7 @@ O cliente é responsável unicamente pela renderização de sprites, animações
 
 - [Visão Geral e Arquitetura](#-visão-geral-e-arquitetura)
 - [Funcionalidades do Jogo](#-funcionalidades-do-jogo)
+- [Sistema de Roles e Privilégios VIP](#-sistema-de-roles-e-privilégios-vip)
 - [Sistema de Encontros por Região (Region Control)](#-sistema-de-encontros-por-região-region-control)
 - [Estrutura do Repositório](#-estrutura-do-repositório)
 - [Início Rápido para Desenvolvedores](#-início-rápido-para-desenvolvedores)
@@ -55,8 +56,10 @@ O NytheraSide adota um modelo híbrido voltado a jogos online persistentes:
   2. *Customização de Visual*: Canvas interativo com iluminação e rotação 360° em 4 direções (`↻`).
   3. *Nome e Confirmação*: Validação de caracteres e verificação de duplicidade no banco.
 - **Seleção de Personagens**:
-  - Até 4 slots de heróis por conta.
-  - Painel com resumo detalhado (nível, atributos base, classe, mapa atual).
+  - Grade 3x2 com até 6 slots (4 base para contas comuns + 2 slots para VIP/GM/Admin).
+  - Slots 5 e 6 exibem status de bloqueio visual (`🔒`) para jogadores não-VIP.
+  - **Retenção de Personagens**: Se o VIP expirar, os personagens já criados continuam 100% jogáveis.
+  - Painel com resumo detalhado (tipo de conta, dias VIP restantes, nível, classe, mapa atual).
   - Ações para entrar diretamente no mapa ou excluir herói com modal de confirmação.
 
 ### 2. HUD MMORPG Integrada (`Nythera_HUD.js`)
@@ -74,6 +77,105 @@ O NytheraSide adota um modelo híbrido voltado a jogos online persistentes:
 - Interceptação de `BattleManager` do RPG Maker MZ para apresentação visual.
 - Envio de comandos de ataque e habilidades ao servidor (`BATTLE_COMMAND_REQ`).
 - Sincronização de eventos de animação (`ACTION_START`, `DAMAGE`, `HEAL`, `DEATH`, `BATTLE_WON`, `BATTLE_LOST`).
+
+---
+
+## 👑 Sistema de Roles e Privilégios VIP
+
+O sistema de privilégios do NytheraSide é integrado ao banco de dados SQLite/PostgreSQL e sincronizado tanto na tela de seleção de heróis quanto durante o jogo nos mapas do RPG Maker MZ através do plugin **`NET_VIP.js`**.
+
+### 1. Hierarquia de Roles no Banco de Dados
+
+| Role | Descrição | Limite de Slots | Privilégios VIP |
+|---|---|:---:|:---:|
+| `normal` | Jogador comum sem privilégios extras. | 4 heróis | Não (a menos que tenha `vip_until` ativo) |
+| `vip` | Jogador VIP com assinatura ou dias ativos. | 6 heróis (+2) | Sim |
+| `gm` | Game Master (gerenciador de eventos e moderação). | 6 heróis (+2) | Sim (perpétuo) |
+| `admin` | Administrador completo do sistema. | 6 heróis (+2) | Sim (perpétuo) |
+
+> [!NOTE]
+> **Padrão de Criação de Contas**:
+> - Contas registradas com e-mails contendo `teste` ou `admin` (ex: `teste@teste.com`) são automaticamente criadas com o papel **`admin`** e VIP perpétuo.
+> - Todas as demais novas contas registradas recebem a role **`normal`**.
+
+---
+
+### 2. Regra dos Slots de Personagens (+2 Slots) & Retenção
+
+1. **Slots Base**: Jogadores comuns podem criar até 4 personagens.
+2. **Slots VIP**: Jogadores VIP, GM ou Admin desbloqueiam os slots 5 e 6 na grade de seleção.
+3. **Regra de Retenção Absoluta**:
+   - Se um jogador cria heróis nos slots 5 e 6 enquanto VIP e posteriormente seu VIP expira, **os personagens já criados continuam 100% ativos, acessíveis e jogáveis normalmente!**
+   - O servidor e o cliente nunca desativam, trancam ou apagam heróis existentes.
+   - Apenas se o jogador deletar voluntariamente um herói de sua conta e não tiver mais VIP ativo, o slot voltará a ficar bloqueado para novas criações.
+
+---
+
+### 3. Comandos em Eventos do RPG Maker MZ
+
+Você pode conceder VIP ou verificar acessos diretamente através de **Comentários de Evento** ou **Plugin Commands**:
+
+#### A. Conceder ou Revogar VIP via Comentário:
+Adicione um comando de **Comentário** no evento com a seguinte sintaxe:
+- `<vip: 1, 7>` — Concede **7 dias** de VIP para a conta do jogador ativo. O jogo toca a fanfarra `Chime2` e exibe mensagem de confirmação.
+- `<vip: 1, 30>` — Concede **30 dias** de VIP (se o jogador já for VIP, os dias são somados ao vencimento atual).
+- `<vip: 0, 0>` — Revoga o status VIP da conta.
+
+#### B. Bloqueio e Verificação de Acesso VIP:
+Para restringir um NPC, baú de tesouro ou portal para membros VIP:
+Coloque no início da lista de comandos do evento um Comentário com:
+```text
+<vip>
+```
+- Se o jogador **NÃO for VIP/GM/Admin**: A execução do evento é interrompida imediatamente, toca um sinal sonoro de Buzzer e exibe o aviso na tela: `[Acesso VIP] Este conteúdo é exclusivo para membros VIP!`.
+- Se o jogador **FOR VIP**: O evento continua normalmente para os próximos comandos.
+
+---
+
+### 4. Integração Nativa com o Editor MZ (Switch 10 e Variável 10)
+
+O plugin `NET_VIP.js` sincroniza automaticamente os dados com as switches e variáveis do jogo:
+
+- **Switch 0010 (`VIP`)**:
+  - `ON`: O jogador possui status VIP ativo (ou role `admin`/`gm`).
+  - `OFF`: O jogador é conta comum sem VIP.
+  - *Como usar no editor*: Crie uma **Página 2** no NPC com a Condição de Página `[x] Switch 0010 (VIP) está ON` para oferecer diálogos, lojas ou recompensas exclusivas para VIPs sem precisar de scripts.
+  - Também pode ser usado no comando nativo do MZ: `Condição (Se / Senão) -> Switch [0010: VIP] == ON`.
+
+- **Variável 0010 (`Dias VIP`)**:
+  - Armazena o número inteiro de dias VIP restantes da conta.
+  - *Como usar nas mensagens*: `Você ainda possui \V[10] dias de VIP restantes!`.
+
+---
+
+### 5. Chamadas de Script (Script Calls) para Desenvolvedores
+
+Você pode utilizar diretamente em comandos de Script ou Condições em Script:
+
+```javascript
+// Verifica se o jogador tem status VIP ativo (ou se é GM/Admin)
+if (NET.isVip()) {
+  // Acesso liberado
+}
+
+// Verifica se a role é exatamente administrador
+if (NET.isAdmin()) { ... }
+
+// Verifica se a role é GM ou Admin
+if (NET.isGm()) { ... }
+
+// Retorna a role atual do usuário ('normal' | 'vip' | 'gm' | 'admin')
+var role = NET.userRole();
+
+// Retorna a quantidade de dias VIP restantes (número inteiro)
+var dias = NET.vipDaysRemaining();
+
+// Concede 7 dias de VIP via script
+NET.grantVip(1, 7);
+
+// Revoga VIP via script
+NET.grantVip(0, 0);
+```
 
 ---
 
@@ -157,6 +259,7 @@ NytheraSide/
 │   ├── plugins/                # Plugins MZ customizados
 │   │   ├── NET_Client.js       # Gerenciador de conexão WebSocket
 │   │   ├── NET_Auth.js         # Interface Dark Glassmorphism (Login/CharSelect)
+│   │   ├── NET_VIP.js          # Sistema de Roles e Privilégios VIP
 │   │   ├── NET_BattleBridge.js # Bridge de combate autoritativo
 │   │   ├── NET_MapBridge.js    # Sincronização fluida de mapa e outros players
 │   │   ├── Nythera_HUD.js      # HUD compacta em pixel art
@@ -217,6 +320,7 @@ A comunicação em tempo real acontece via WebSocket no endpoint `/sync`:
 | Tipo | Argumentos Principais | Descrição |
 |---|---|---|
 | `AUTH_REQ` | `{ token, characterId? }` | Autentica a sessão do jogador conectado. |
+| `CMD_VIP_REQ` | `{ action, days? }` | Solicita concessão (`1`) ou revogação (`0`) de status VIP. |
 | `MAP_MOVE_REQ` | `{ mapId, x, y, direction, isMoving, speed, followers }` | Sincroniza a posição e movimentação a cada 50ms. |
 | `BATTLE_START_REQ` | `{ troopId?, enemyIds? }` | Solicita início de combate (suporta Tropa ou Inimigos dinâmicos). |
 | `BATTLE_COMMAND_REQ` | `{ command: { type, skillId, targetId } }` | Executa ação em batalha (ataque/skill/item). |
@@ -226,7 +330,8 @@ A comunicação em tempo real acontece via WebSocket no endpoint `/sync`:
 
 | Tipo | Argumentos Principais | Descrição |
 |---|---|---|
-| `AUTH_RES` | `{ success, character }` | Confirmação e dados do herói ativo. |
+| `AUTH_RES` | `{ success, character, user: { role, isVip, vipUntil } }` | Confirmação, dados do herói ativo e status/role da conta. |
+| `CMD_VIP_RES` | `{ success, role, isVip, vipUntil, message }` | Confirmação da alteração de status VIP com dias restantes. |
 | `MAP_UPDATE_RES` | `{ players: [...] }` | Snapshot contínuo das posições de todos os jogadores no mapa. |
 | `BATTLE_UPDATE_RES` | `{ state, events: [...] }` | Estado do combate e fila visual de animações (dano, heal, vitória). |
 

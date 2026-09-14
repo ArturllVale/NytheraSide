@@ -21,6 +21,7 @@ describe('CharacterService', () => {
         id: 'user-id-for-test',
         email: 'test@example.com',
         password_hash: 'hashed-password',
+        role: 'admin',
       }
     });
     authUserId = user.id;

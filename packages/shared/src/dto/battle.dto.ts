@@ -63,6 +63,11 @@ export const BattleWsClientPayloadSchema = z.discriminatedUnion('type', [
     type: z.literal('MAP_MOVE_REQ'),
     payload: MapMoveRequestSchema
   }),
+  z.object({
+    type: z.literal('CMD_VIP_REQ'),
+    action: z.number().int(), // 1 = grant, 0 = revoke
+    days: z.number().int().optional()
+  }),
 ]);
 
 export type BattleWsClientPayload = z.infer<typeof BattleWsClientPayloadSchema>;
@@ -79,7 +84,12 @@ export const BattleWsServerPayloadSchema = z.discriminatedUnion('type', [
       x: z.number().int(),
       y: z.number().int(),
       direction: z.number().int(),
-    }).optional()
+    }).optional(),
+    user: z.object({
+      role: z.string(),
+      isVip: z.boolean(),
+      vipUntil: z.string().nullable().optional(),
+    }).optional(),
   }),
   z.object({
     type: z.literal('BATTLE_UPDATE_RES'),
@@ -93,7 +103,15 @@ export const BattleWsServerPayloadSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('MAP_UPDATE_RES'),
     payload: MapUpdateResponseSchema
-  })
+  }),
+  z.object({
+    type: z.literal('CMD_VIP_RES'),
+    success: z.boolean(),
+    role: z.string(),
+    isVip: z.boolean(),
+    vipUntil: z.string().nullable().optional(),
+    message: z.string().optional()
+  }),
 ]);
 
 export type BattleWsServerPayload = z.infer<typeof BattleWsServerPayloadSchema>;

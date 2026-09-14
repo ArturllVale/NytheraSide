@@ -673,6 +673,9 @@ window.NET = window.NET || {};
           .then(function(cJson) {
             var chars = (cJson && cJson.data) || [];
             window.$nytheraCharacters = chars;
+            if (window.NET && NET.setUserInfo) {
+              NET.setUserInfo(result.data.data.user, cJson);
+            }
             self.destroy();
             if (chars.length > 0) {
               SceneManager.goto(Scene_NytheraCharSelect);
@@ -780,6 +783,9 @@ window.NET = window.NET || {};
               var token = loginRes.data.token;
               self.savePreferences(email, token);
               window.$nytheraCharacters = [];
+              if (window.NET && NET.setUserInfo) {
+                NET.setUserInfo(loginRes.data.user);
+              }
               self.destroy();
               SceneManager.goto(Scene_NytheraCharCreate);
             } else {
@@ -1319,6 +1325,10 @@ window.NET = window.NET || {};
       self._characters = (charRes && charRes.data) || [];
       window.$nytheraCharacters = self._characters;
 
+      if (window.NET && NET.setUserInfo) {
+        NET.setUserInfo(null, charRes);
+      }
+
       if (self._characters.length === 0) {
         self.terminate();
         SceneManager.goto(Scene_NytheraCharCreate);
@@ -1344,10 +1354,30 @@ window.NET = window.NET || {};
     var self = this;
     this._overlay.innerHTML = '';
 
+    var isVip = (window.NET && NET.isVip) ? NET.isVip() : false;
+    var userRole = (window.NET && NET.userRole) ? NET.userRole() : 'normal';
+    var daysRem = (window.NET && NET.vipDaysRemaining) ? NET.vipDaysRemaining() : 0;
+
+    var badgeText = 'CONTA COMUM';
+    var badgeStyle = 'background: rgba(148, 163, 184, 0.15); border: 1px solid rgba(148, 163, 184, 0.3); color: #94a3b8;';
+    if (userRole === 'admin') {
+      badgeText = '👑 ADMIN';
+      badgeStyle = 'background: rgba(168, 85, 247, 0.2); border: 1px solid #a855f7; color: #d8b4fe;';
+    } else if (userRole === 'gm') {
+      badgeText = '🛡️ GM';
+      badgeStyle = 'background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd;';
+    } else if (isVip) {
+      badgeText = '⭐ VIP (' + (daysRem >= 999 ? 'Permanente' : daysRem + 'd') + ')';
+      badgeStyle = 'background: rgba(247, 210, 126, 0.2); border: 1px solid #f7d27e; color: #f7d27e;';
+    }
+
     var headerBox = document.createElement('div');
     headerBox.innerHTML = `
       <h1 class="nythera-main-title">Seus Campeões</h1>
-      <p class="nythera-subtitle-text">Escolha quem empunhará sua glória nesta jornada</p>
+      <p class="nythera-subtitle-text">
+        Escolha quem empunhará sua glória nesta jornada
+        <span style="display: inline-block; margin-left: 10px; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; ${badgeStyle}">${badgeText}</span>
+      </p>
     `;
     this._overlay.appendChild(headerBox);
 
@@ -1363,16 +1393,16 @@ window.NET = window.NET || {};
       boxSizing: 'border-box'
     });
 
-    // Grade de 4 Slots (2x2)
+    // Grade de 6 Slots (3x2)
     var grid = document.createElement('div');
     Object.assign(grid.style, {
       display: 'grid',
-      gridTemplateColumns: '180px 180px',
+      gridTemplateColumns: '180px 180px 180px',
       gap: '18px',
       boxSizing: 'border-box'
     });
 
-    var maxSlots = 4;
+    var maxSlots = 6;
     for (var i = 0; i < maxSlots; i++) {
       (function(idx) {
         var char = self._characters[idx];
@@ -1394,7 +1424,26 @@ window.NET = window.NET || {};
         });
 
         if (char) {
-          // Slot Preenchido
+          // Slot Preenchido (Herói existente)
+          if (idx >= 4) {
+            var vipTag = document.createElement('div');
+            vipTag.innerText = 'SLOT VIP';
+            Object.assign(vipTag.style, {
+              position: 'absolute',
+              top: '6px',
+              right: '6px',
+              padding: '2px 6px',
+              fontSize: '9px',
+              fontWeight: '700',
+              color: '#f7d27e',
+              background: 'rgba(247, 210, 126, 0.15)',
+              border: '1px solid rgba(247, 210, 126, 0.4)',
+              borderRadius: '4px',
+              letterSpacing: '0.5px'
+            });
+            slot.appendChild(vipTag);
+          }
+
           var canvas = document.createElement('canvas');
           canvas.width = 96;
           canvas.height = 128;
@@ -1433,6 +1482,7 @@ window.NET = window.NET || {};
 
             // Atualiza destaque visual dos slots
             Array.from(grid.children).forEach(function(s) {
+              if (s._isLocked) return;
               s.style.borderColor = 'rgba(229, 184, 92, 0.25)';
               s.style.boxShadow = 'none';
               s.style.background = 'rgba(16, 22, 36, 0.9)';
@@ -1441,26 +1491,74 @@ window.NET = window.NET || {};
             slot.style.boxShadow = '0 0 20px rgba(247, 210, 126, 0.35)';
             slot.style.background = 'rgba(229, 184, 92, 0.12)';
           };
+        } else if (idx >= 4 && !isVip) {
+          // Slot VIP Bloqueado para Não-VIP
+          slot._isLocked = true;
+          slot.style.border = '1px dashed rgba(255, 255, 255, 0.15)';
+          slot.style.background = 'rgba(12, 16, 26, 0.6)';
+          slot.style.cursor = 'not-allowed';
+          slot.style.opacity = '0.75';
+
+          var lockIcon = document.createElement('div');
+          lockIcon.innerText = '🔒';
+          lockIcon.style.fontSize = '30px';
+          lockIcon.style.marginBottom = '6px';
+
+          var lockedLabel = document.createElement('div');
+          lockedLabel.innerText = 'Slot VIP';
+          Object.assign(lockedLabel.style, {
+            fontSize: '13px',
+            fontWeight: '700',
+            color: '#f7d27e',
+            letterSpacing: '0.5px'
+          });
+
+          var lockedSub = document.createElement('div');
+          lockedSub.innerText = 'Bloqueado';
+          Object.assign(lockedSub.style, {
+            fontSize: '11px',
+            fontWeight: '600',
+            color: '#ef4444',
+            marginTop: '2px'
+          });
+
+          var lockedInfo = document.createElement('div');
+          lockedInfo.innerText = '+2 slots p/ VIPs';
+          Object.assign(lockedInfo.style, {
+            fontSize: '11px',
+            color: '#64748b',
+            marginTop: '8px'
+          });
+
+          slot.appendChild(lockIcon);
+          slot.appendChild(lockedLabel);
+          slot.appendChild(lockedSub);
+          slot.appendChild(lockedInfo);
+
+          slot.onclick = function() {
+            alert('Este slot é exclusivo para membros VIP (+2 slots de personagens)!\nAdquira VIP em jogo ou fale com a administração para desbloquear.');
+          };
         } else {
-          // Slot Vazio -> Criar Novo Herói
-          slot.style.border = '2px dashed rgba(229, 184, 92, 0.3)';
-          slot.style.background = 'rgba(16, 22, 36, 0.6)';
+          // Slot Vazio Desbloqueado -> Criar Novo Herói
+          var isVipSlot = (idx >= 4);
+          slot.style.border = isVipSlot ? '2px dashed rgba(247, 210, 126, 0.5)' : '2px dashed rgba(229, 184, 92, 0.3)';
+          slot.style.background = isVipSlot ? 'rgba(247, 210, 126, 0.05)' : 'rgba(16, 22, 36, 0.6)';
 
           var plus = document.createElement('div');
           plus.innerText = '+';
           Object.assign(plus.style, {
             fontSize: '40px',
-            color: '#94a3b8',
+            color: isVipSlot ? '#f7d27e' : '#94a3b8',
             transition: 'all 0.2s ease',
             lineHeight: '1'
           });
 
           var createLabel = document.createElement('div');
-          createLabel.innerText = 'Criar Novo Herói';
+          createLabel.innerText = isVipSlot ? 'Criar Herói VIP' : 'Criar Novo Herói';
           Object.assign(createLabel.style, {
             fontSize: '13px',
             fontWeight: '600',
-            color: '#94a3b8',
+            color: isVipSlot ? '#f7d27e' : '#94a3b8',
             marginTop: '10px',
             transition: 'all 0.2s ease'
           });
@@ -1476,11 +1574,11 @@ window.NET = window.NET || {};
             createLabel.style.color = '#f7d27e';
           };
           slot.onmouseleave = function() {
-            slot.style.borderColor = 'rgba(229, 184, 92, 0.3)';
-            slot.style.background = 'rgba(16, 22, 36, 0.6)';
-            plus.style.color = '#94a3b8';
+            slot.style.borderColor = isVipSlot ? 'rgba(247, 210, 126, 0.5)' : 'rgba(229, 184, 92, 0.3)';
+            slot.style.background = isVipSlot ? 'rgba(247, 210, 126, 0.05)' : 'rgba(16, 22, 36, 0.6)';
+            plus.style.color = isVipSlot ? '#f7d27e' : '#94a3b8';
             plus.style.transform = 'scale(1)';
-            createLabel.style.color = '#94a3b8';
+            createLabel.style.color = isVipSlot ? '#f7d27e' : '#94a3b8';
           };
 
           slot.onclick = function() {
@@ -1545,6 +1643,16 @@ window.NET = window.NET || {};
       return;
     }
 
+    var isVip = (window.NET && NET.isVip) ? NET.isVip() : false;
+    var userRole = (window.NET && NET.userRole) ? NET.userRole() : 'normal';
+    var daysRem = (window.NET && NET.vipDaysRemaining) ? NET.vipDaysRemaining() : 0;
+
+    var roleLabel = 'Comum';
+    var roleColor = '#94a3b8';
+    if (userRole === 'admin') { roleLabel = 'Admin 👑'; roleColor = '#d8b4fe'; }
+    else if (userRole === 'gm') { roleLabel = 'Game Master 🛡️'; roleColor = '#93c5fd'; }
+    else if (isVip) { roleLabel = 'VIP ⭐'; roleColor = '#f7d27e'; }
+
     this._detailsPanel.style.display = 'flex';
     this._detailsPanel.innerHTML = '';
 
@@ -1593,6 +1701,11 @@ window.NET = window.NET || {};
     this._detailsPanel.appendChild(createRow('Classe', char.className || 'Aventureiro'));
     this._detailsPanel.appendChild(createRow('Nível', String(char.level || 1)));
     this._detailsPanel.appendChild(createRow('Localização', mapName));
+    this._detailsPanel.appendChild(createRow('Conta', roleLabel, roleColor));
+    this._detailsPanel.appendChild(createRow('Slots de Criação', self._characters.length + ' / ' + (isVip ? '6 (VIP)' : '4')));
+    if (isVip && daysRem < 999) {
+      this._detailsPanel.appendChild(createRow('VIP Restante', daysRem + ' dias', '#f7d27e'));
+    }
 
     // Botão ENTRAR NO REINO
     var enterBtn = document.createElement('button');

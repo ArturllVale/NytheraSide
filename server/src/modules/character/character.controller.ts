@@ -1,6 +1,7 @@
 import { CharacterService } from './character.service';
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { CreateCharacterRequestSchema, ErrorCodes } from '@nythera/shared';
+import { CreateCharacterRequestSchema, ErrorCodes, isUserVip } from '@nythera/shared';
+import { prisma } from '../../infra/prisma';
 import { logger } from '../../infra/logger';
 
 export class CharacterController {
@@ -33,6 +34,8 @@ export class CharacterController {
     } catch (error: any) {
       if (error.code === 'INVALID_CHARACTER_NAME' || error.code === 'CHARACTER_NAME_TAKEN') {
         reply.status(400).send({ success: false, error: error.message });
+      } else if (error.code === 'VIP_SLOT_LOCKED' || error.code === 'MAX_CHARACTERS_REACHED') {
+        reply.status(403).send({ success: false, error: error.message, code: error.code });
       } else if (error.code === ErrorCodes.CHARACTER_ACTOR_NOT_FOUND || error.code === ErrorCodes.CHARACTER_CLASS_NOT_FOUND) {
         reply.status(404).send({ success: false, error: error.message });
       } else {
@@ -50,8 +53,21 @@ export class CharacterController {
     }
 
     try {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
       const characters = await this.characterService.getCharactersByUserId(userId);
-      reply.send({ success: true, data: characters });
+      const isVip = user ? isUserVip(user) : false;
+      const role = user?.role || 'normal';
+      const vipUntil = user?.vip_until ? user.vip_until.toISOString() : null;
+      const maxSlots = isVip ? 6 : 4;
+
+      reply.send({
+        success: true,
+        data: characters,
+        isVip,
+        role,
+        vipUntil,
+        maxSlots,
+      });
     } catch (error) {
       logger.error({ err: error }, 'Error in getCharacters');
       reply.status(500).send({ success: false, error: 'Internal server error' });

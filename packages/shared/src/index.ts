@@ -6,3 +6,4 @@ export * from './dto/battle.dto';
 export * from './dto/progress.dto';
 export * from './dto/map.dto';
 export * from './types/battle';
+export * from './types/vip';

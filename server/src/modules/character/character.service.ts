@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ContentService } from '../content/content.service';
-import { ErrorCodes } from '@nythera/shared';
+import { ErrorCodes, isUserVip } from '@nythera/shared';
 import { prisma } from '../../infra/prisma';
 
 export class CharacterService {
@@ -153,6 +153,29 @@ export class CharacterService {
     }
     if (trimmedName.length > 20) {
       throw { code: 'INVALID_CHARACTER_NAME', message: 'O nome do personagem deve ter no máximo 20 caracteres.' };
+    }
+
+    // Validate user exists and check slot limits
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw { code: ErrorCodes.AUTH_TOKEN_INVALID, message: 'Usuário não encontrado' };
+    }
+
+    const currentCount = await prisma.character.count({ where: { user_id: userId } });
+    const isVip = isUserVip(user);
+    const maxSlots = isVip ? 6 : 4;
+
+    if (currentCount >= maxSlots) {
+      if (!isVip && currentCount >= 4) {
+        throw {
+          code: 'VIP_SLOT_LOCKED',
+          message: 'Você atingiu o limite de 4 heróis da conta comum. Torne-se VIP para desbloquear +2 slots de criação!'
+        };
+      }
+      throw {
+        code: 'MAX_CHARACTERS_REACHED',
+        message: `Você atingiu o limite máximo de ${maxSlots} heróis.`
+      };
     }
 
     // Get active content

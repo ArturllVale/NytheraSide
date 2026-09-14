@@ -14,6 +14,7 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
     authController.logout.bind(authController)
   );
   fastify.get('/me', { preHandler: [authMiddleware] }, authController.me.bind(authController));
+  fastify.post('/user/vip', { preHandler: [authMiddleware] }, authController.updateVip.bind(authController));
 };
 
 export default fp(authPlugin, { name: 'auth' });

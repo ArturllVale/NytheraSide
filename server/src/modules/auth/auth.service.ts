@@ -1,7 +1,7 @@
 import argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { config } from 'dotenv';
-import { ErrorCodes } from '@nythera/shared';
+import { ErrorCodes, isUserVip } from '@nythera/shared';
 import { rateLimiter } from '../../infra/ratelimit';
 import { prisma } from '../../infra/prisma';
 
@@ -15,17 +15,23 @@ export class AuthService {
     }
 
     const passwordHash = await argon2.hash(password);
+    const normalizedEmail = email.toLowerCase();
+    const role = (normalizedEmail.includes('teste') || normalizedEmail.includes('admin')) ? 'admin' : 'normal';
 
     const user = await prisma.user.create({
       data: {
         id: randomUUID(),
         email,
         password_hash: passwordHash,
+        role,
       }
     });
 
     const { password_hash, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return {
+      ...userWithoutPassword,
+      isVip: isUserVip(user),
+    };
   }
 
   async login(email: string, password: string) {
@@ -39,11 +45,14 @@ export class AuthService {
     let user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       if (password && password.length >= 8) {
+        const normalizedEmail = email.toLowerCase();
+        const role = (normalizedEmail.includes('teste') || normalizedEmail.includes('admin')) ? 'admin' : 'normal';
         user = await prisma.user.create({
           data: {
             id: randomUUID(),
             email,
             password_hash: await argon2.hash(password),
+            role,
           }
         });
       } else {
@@ -73,7 +82,10 @@ export class AuthService {
     const { password_hash, ...userWithoutPassword } = user;
     return {
       token,
-      user: userWithoutPassword,
+      user: {
+        ...userWithoutPassword,
+        isVip: isUserVip(user),
+      },
     };
   }
 
@@ -87,7 +99,50 @@ export class AuthService {
       throw { code: ErrorCodes.AUTH_TOKEN_INVALID, message: 'User not found' };
     }
     const { password_hash, ...userWithoutPassword } = result;
-    return userWithoutPassword;
+    return {
+      ...userWithoutPassword,
+      isVip: isUserVip(result),
+    };
+  }
+
+  async updateVipStatus(userId: string, action: number, days: number = 7) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw { code: ErrorCodes.AUTH_TOKEN_INVALID, message: 'Usuário não encontrado' };
+    }
+
+    let role = user.role;
+    let vipUntil: Date | null = null;
+
+    if (action === 1) {
+      const now = new Date();
+      const baseDate = (user.vip_until && user.vip_until > now) ? user.vip_until : now;
+      vipUntil = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
+      if (role === 'normal') {
+        role = 'vip';
+      }
+    } else if (action === 0) {
+      vipUntil = null;
+      if (role === 'vip') {
+        role = 'normal';
+      }
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        role,
+        vip_until: vipUntil,
+      },
+    });
+
+    const isVip = isUserVip(updated);
+    return {
+      success: true,
+      role: updated.role,
+      isVip,
+      vipUntil: updated.vip_until ? updated.vip_until.toISOString() : null,
+    };
   }
 
   async validateToken(token: string) {

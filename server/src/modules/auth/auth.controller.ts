@@ -119,4 +119,24 @@ export class AuthController {
       reply.status(404).send({ success: false, error: 'User not found' });
     }
   }
+
+  async updateVip(request: FastifyRequest, reply: FastifyReply) {
+    const userId = request.user?.id;
+    if (!userId) {
+      reply.status(401).send({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const body = (request.body || {}) as { action?: number; days?: number };
+    const action = typeof body.action === 'number' ? body.action : 1;
+    const days = typeof body.days === 'number' ? body.days : 7;
+
+    try {
+      const result = await this.authService.updateVipStatus(userId, action, days);
+      reply.send(result);
+    } catch (error: any) {
+      logger.error({ err: error }, 'Error in updateVip');
+      reply.status(500).send({ success: false, error: error.message || 'Internal server error' });
+    }
+  }
 }
