@@ -22,8 +22,19 @@
     try {
         ghostMode = (localStorage.getItem('nythera_chat_ghost') === 'true');
     } catch (e) {}
+    var showTimestamp = false;
+    try {
+        showTimestamp = (localStorage.getItem('nythera_chat_timestamp') === 'true');
+    } catch (e) {}
     var isMouseOverChat = false;
     var isChatFocused = false;
+
+    function getFormattedTime() {
+        var d = new Date();
+        var h = String(d.getHours()).padStart(2, '0');
+        var m = String(d.getMinutes()).padStart(2, '0');
+        return '[' + h + ':' + m + ']';
+    }
 
     // Mapa de atalhos de emoticons para Unicode Emojis
     var EMOJI_MAP = {
@@ -43,26 +54,62 @@
         'XD': '😆',
         '<3': '❤️',
         ':fire:': '🔥',
+        ':fogo:': '🔥',
+        ':flame:': '🔥',
         ':sword:': '⚔️',
+        ':espada:': '⚔️',
+        ':swords:': '⚔️',
         ':shield:': '🛡️',
+        ':escudo:': '🛡️',
         ':bow:': '🏹',
+        ':arco:': '🏹',
         ':mage:': '🧙',
+        ':mago:': '🧙',
         ':gold:': '💰',
+        ':ouro:': '💰',
+        ':coin:': '💰',
         ':gem:': '💎',
+        ':diamante:': '💎',
         ':skull:': '💀',
+        ':caveira:': '💀',
         ':crown:': '👑',
+        ':coroa:': '👑',
         ':star:': '⭐',
+        ':estrela:': '⭐',
         ':potion:': '🧪',
+        ':pocao:': '🧪',
         ':heart:': '❤️',
+        ':coracao:': '❤️',
         ':like:': '👍',
+        ':joinha:': '👍',
         ':+1:': '👍',
         ':-1:': '👎',
+        ':dislike:': '👎',
         ':eyes:': '👀',
+        ':olhos:': '👀',
         ':party:': '🎉',
+        ':festa:': '🎉',
         ':trophy:': '🏆',
+        ':trofeu:': '🏆',
         ':gg:': '🏆',
         ':target:': '🎯',
-        ':muscle:': '💪'
+        ':alvo:': '🎯',
+        ':muscle:': '💪',
+        ':forca:': '💪',
+        ':clap:': '👏',
+        ':palmas:': '👏',
+        ':think:': '🤔',
+        ':pensando:': '🤔',
+        ':cool:': '😎',
+        ':oculos:': '😎',
+        ':lol:': '😂',
+        ':risos:': '😂',
+        ':cry:': '😭',
+        ':choro:': '😭',
+        ':sleep:': '😴',
+        ':sono:': '😴',
+        ':angry:': '😡',
+        ':bravo:': '😡'
     };
 
     function parseEmojis(text) {
@@ -187,7 +234,28 @@
         actionsBar.style.gap = '4px';
         actionsBar.style.paddingRight = '2px';
 
-        // 1. Botão de Transparência ao Mover (Ghost Mode)
+        // 1. Botão de Timestamp (Horário) 🕒
+        var timeBtn = document.createElement('button');
+        timeBtn.type = 'button';
+        timeBtn.id = 'nythera-chat-time-btn';
+        timeBtn.innerText = '🕒';
+        timeBtn.title = showTimestamp ? 'Horário das Mensagens: Ativado' : 'Horário das Mensagens: Desativado';
+        timeBtn.style.backgroundColor = showTimestamp ? 'rgba(212, 160, 62, 0.28)' : 'transparent';
+        timeBtn.style.border = showTimestamp ? '1px solid rgba(255, 215, 0, 0.6)' : '1px solid transparent';
+        timeBtn.style.borderRadius = '3px';
+        timeBtn.style.cursor = 'pointer';
+        timeBtn.style.fontSize = '12px';
+        timeBtn.style.padding = '2px 5px';
+        timeBtn.style.lineHeight = '1';
+        timeBtn.style.opacity = showTimestamp ? '1' : '0.5';
+        timeBtn.style.outline = 'none';
+        timeBtn.style.transition = 'all 0.15s ease';
+        timeBtn.onclick = function(e) {
+            e.stopPropagation();
+            toggleTimestamp();
+        };
+
+        // 2. Botão de Transparência ao Mover (Ghost Mode)
         var ghostBtn = document.createElement('button');
         ghostBtn.type = 'button';
         ghostBtn.id = 'nythera-chat-ghost-btn';
@@ -208,7 +276,7 @@
             toggleGhostMode();
         };
 
-        // 2. Botão de Minimizar / Restaurar Chat
+        // 3. Botão de Minimizar / Restaurar Chat
         var minBtn = document.createElement('button');
         minBtn.type = 'button';
         minBtn.id = 'nythera-chat-min-btn';
@@ -232,6 +300,7 @@
             toggleMinimizeChat();
         };
 
+        actionsBar.appendChild(timeBtn);
         actionsBar.appendChild(ghostBtn);
         actionsBar.appendChild(minBtn);
         tabsBar.appendChild(actionsBar);
@@ -331,58 +400,16 @@
             sendChatMessage();
         };
 
-        var typeSelect = document.createElement('select');
-        typeSelect.id = 'nythera-chat-type';
-        typeSelect.style.flexShrink = '0';
-        typeSelect.style.backgroundColor = 'transparent';
-        typeSelect.style.color = '#ffd700';
-        typeSelect.style.fontWeight = 'bold';
-        typeSelect.style.border = 'none';
-        typeSelect.style.padding = '4px 6px';
-        typeSelect.style.outline = 'none';
-        typeSelect.style.cursor = 'pointer';
-        typeSelect.style.fontSize = '12px';
-
-        var optLocal = document.createElement('option');
-        optLocal.value = 'local';
-        optLocal.innerText = '[Local]';
-        optLocal.style.color = '#000';
-
-        var optGlobal = document.createElement('option');
-        optGlobal.value = 'global';
-        optGlobal.innerText = '[Global]';
-        optGlobal.style.color = '#000';
-
-        var optWhisper = document.createElement('option');
-        optWhisper.value = 'whisper';
-        optWhisper.innerText = '[Privado]';
-        optWhisper.style.color = '#000';
-
-        typeSelect.appendChild(optLocal);
-        typeSelect.appendChild(optGlobal);
-        typeSelect.appendChild(optWhisper);
-
-        typeSelect.onchange = function() {
-            var selected = typeSelect.value;
-            if (selected === 'whisper') {
-                switchTab('whisper');
-            } else if (selected === 'global') {
-                switchTab('global');
-            } else {
-                switchTab('local');
-            }
-        };
-
         var inputField = document.createElement('input');
         inputField.id = 'nythera-chat-input';
         inputField.type = 'text';
-        inputField.placeholder = 'Pressione Enter para falar...';
+        inputField.placeholder = 'Falar no mapa local...';
         inputField.style.flex = '1';
         inputField.style.minWidth = '0'; // Garante que não estoure no flexbox
         inputField.style.backgroundColor = 'transparent';
         inputField.style.color = '#fff';
         inputField.style.border = 'none';
-        inputField.style.padding = '4px 6px';
+        inputField.style.padding = '4px 8px';
         inputField.style.outline = 'none';
         inputField.style.fontSize = '13px';
 
@@ -391,6 +418,23 @@
         });
         inputField.addEventListener('keyup', function(e) {
             e.stopPropagation();
+        });
+
+        // Conversão em tempo real: assim que digitar :fire: ou :) já vira emoji na caixa
+        inputField.addEventListener('input', function() {
+            var val = inputField.value;
+            var parsed = parseEmojis(val);
+            if (val !== parsed) {
+                var selStart = inputField.selectionStart;
+                var beforeCursor = val.slice(0, selStart || val.length);
+                var parsedBeforeCursor = parseEmojis(beforeCursor);
+                var newCursorPos = parsedBeforeCursor.length;
+
+                inputField.value = parsed;
+                if (selStart !== null && inputField.setSelectionRange) {
+                    inputField.setSelectionRange(newCursorPos, newCursorPos);
+                }
+            }
         });
 
         // Botão de Emoji 😀 no final absoluto da barra
@@ -427,7 +471,6 @@
             toggleEmojiPicker();
         };
 
-        inputForm.appendChild(typeSelect);
         inputForm.appendChild(inputField);
         inputForm.appendChild(emojiBtn);
         container.appendChild(inputForm);
@@ -530,6 +573,26 @@
         }
     }
 
+    function toggleTimestamp() {
+        showTimestamp = !showTimestamp;
+        try {
+            localStorage.setItem('nythera_chat_timestamp', showTimestamp ? 'true' : 'false');
+        } catch (e) {}
+
+        var timeBtn = document.getElementById('nythera-chat-time-btn');
+        if (timeBtn) {
+            timeBtn.style.backgroundColor = showTimestamp ? 'rgba(212, 160, 62, 0.28)' : 'transparent';
+            timeBtn.style.border = showTimestamp ? '1px solid rgba(255, 215, 0, 0.6)' : '1px solid transparent';
+            timeBtn.style.opacity = showTimestamp ? '1' : '0.5';
+            timeBtn.title = showTimestamp ? 'Horário das Mensagens: Ativado' : 'Horário das Mensagens: Desativado';
+        }
+
+        var allTimeSpans = document.querySelectorAll('.nythera-chat-time');
+        allTimeSpans.forEach(function(span) {
+            span.style.display = showTimestamp ? 'inline' : 'none';
+        });
+    }
+
     function toggleEmojiPicker() {
         var picker = document.getElementById('nythera-emoji-picker');
         if (!picker) return;
@@ -580,28 +643,20 @@
             }
         });
 
-        // Sincroniza o seletor de envio e o placeholder
-        var typeSel = document.getElementById('nythera-chat-type');
+        // Sincroniza o placeholder e estado do campo de texto com a aba ativa
         var input = document.getElementById('nythera-chat-input');
-        if (!typeSel || !input) return;
+        if (!input) return;
 
         if (tabId === 'local') {
-            typeSel.style.display = 'block';
-            typeSel.value = 'local';
             input.disabled = false;
             input.placeholder = 'Falar no mapa local...';
         } else if (tabId === 'global') {
-            typeSel.style.display = 'block';
-            typeSel.value = 'global';
             input.disabled = false;
             input.placeholder = 'Falar no canal global...';
         } else if (tabId === 'whisper') {
-            typeSel.style.display = 'block';
-            typeSel.value = 'whisper';
             input.disabled = false;
             input.placeholder = 'Ex: /w Nome mensagem ou Nome: mensagem...';
         } else if (tabId === 'system') {
-            typeSel.style.display = 'none';
             input.disabled = true;
             input.placeholder = 'Canal de Sistema (somente leitura)';
         }
@@ -609,8 +664,7 @@
 
     function sendChatMessage() {
         var input = document.getElementById('nythera-chat-input');
-        var typeSel = document.getElementById('nythera-chat-type');
-        if (!input || !typeSel) return;
+        if (!input) return;
 
         // Fecha o seletor de emojis se aberto
         var picker = document.getElementById('nythera-emoji-picker');
@@ -622,7 +676,7 @@
         // Converte atalhos como :) em emojis reais
         var text = parseEmojis(rawText);
 
-        var channel = typeSel.value;
+        var channel = (currentTab === 'system') ? 'local' : currentTab;
         var targetPlayer = null;
 
         // Comandos de Barra (Slash Commands): /w ou /whisper ou /g ou /l
@@ -691,13 +745,13 @@
             addLogMessage('whisper', label, cleanMessage, '#f472b6', isFromMe ? '#fbcfe8' : roleColor);
         } else if (data.channel === 'system') {
             // Mensagem de Sistema
-            addLogMessage('system', '[Sistema]', cleanMessage, '#38bdf8', '#ffd700');
+            addLogMessage('system', 'Sistema', cleanMessage, '#38bdf8', '#ffd700');
         } else if (data.channel === 'global') {
             // Mensagem Global
-            addLogMessage('global', '[Global] ' + data.sender, cleanMessage, '#ffedd5', roleColor);
+            addLogMessage('global', data.sender, cleanMessage, '#ffedd5', roleColor);
         } else {
-            // Mensagem Local
-            addLogMessage('local', '[Local] ' + data.sender, cleanMessage, '#ffffff', roleColor);
+            // Mensagem Local (sem redundância de [Local])
+            addLogMessage('local', data.sender, cleanMessage, '#ffffff', roleColor);
         }
 
         // --- Adicionar Balão de Fala sobre o personagem (Apenas no mapa local) ---
@@ -725,8 +779,19 @@
         if (!box) return;
 
         var line = document.createElement('div');
+        line.className = 'nythera-chat-line';
         line.style.lineHeight = '1.3';
         line.style.wordBreak = 'break-word';
+
+        // Horário da mensagem (Timestamp)
+        var timeSpan = document.createElement('span');
+        timeSpan.className = 'nythera-chat-time';
+        timeSpan.innerText = getFormattedTime() + ' ';
+        timeSpan.style.color = '#94a3b8';
+        timeSpan.style.fontSize = '11px';
+        timeSpan.style.marginRight = '4px';
+        timeSpan.style.display = showTimestamp ? 'inline' : 'none';
+        line.appendChild(timeSpan);
 
         var senderSpan = document.createElement('strong');
         senderSpan.innerText = senderPrefix + ': ';

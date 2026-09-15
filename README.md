@@ -299,32 +299,37 @@ O jogador pode alternar de canal ou enviar mensagens privadas a partir de **qual
 ### 4. Suporte Completo a Emojis (Atalhos e Seletor Gráfico)
 
 O sistema conta com suporte nativo a emojis tanto na interface de texto das abas quanto nos **balões de fala sobre os heróis**:
-- **Seletor Gráfico (`😀`)**: Botão dedicado ao lado do campo de digitação que abre uma grade com emojis populares organizados para MMOs (reações, armas, itens, magias e símbolos).
-- **Conversão Automática de Atalhos**:
+- **Conversão Instantânea na Caixa de Digitação**: Assim que você termina de digitar o atalho (ex: digita o último `:` de `:fire:` ou `)` de `:)`), o emoji surge imediatamente dentro do próprio campo de digitação, confirmando visualmente antes de enviar!
+- **Seletor Gráfico (`😀`)**: Botão dedicado no final da barra de chat que abre uma grade com emojis populares organizados para MMOs (reações, armas, itens, magias e símbolos).
+- **Atalhos Suportados (Inglês e Português)**:
   - `:)` ou `:-)` ➔ 😊
   - `:D` ou `:-D` ➔ 😄
   - `:(` ou `:-(` ➔ 😢
   - `;)` ou `;-)` ➔ 😉
   - `:p` ou `:P` ➔ 😛
   - `xD` ou `XD` ➔ 😆
-  - `<3` ou `:heart:` ➔ ❤️
-  - `:fire:` ➔ 🔥
-  - `:sword:` ➔ ⚔️
-  - `:shield:` ➔ 🛡️
-  - `:gold:` ➔ 💰
-  - `:skull:` ➔ 💀
-  - `:crown:` ➔ 👑
-  - `:potion:` ➔ 🧪
-  - `:+1:` ou `:like:` ➔ 👍
+  - `<3` ou `:heart:` / `:coracao:` ➔ ❤️
+  - `:fire:` ou `:fogo:` ➔ 🔥
+  - `:sword:` ou `:espada:` ➔ ⚔️
+  - `:shield:` ou `:escudo:` ➔ 🛡️
+  - `:gold:` ou `:ouro:` ➔ 💰
+  - `:skull:` ou `:caveira:` ➔ 💀
+  - `:crown:` ou `:coroa:` ➔ 👑
+  - `:potion:` ou `:pocao:` ➔ 🧪
+  - `:+1:` ou `:like:` / `:joinha:` ➔ 👍
+  - `:target:` ou `:alvo:` ➔ 🎯
+  - `:muscle:` ou `:forca:` ➔ 💪
+  - `:think:` ou `:pensando:` ➔ 🤔
+  - `:cool:` ou `:oculos:` ➔ 😎
+  - `:party:` ou `:festa:` ➔ 🎉
+  - `:trophy:` ou `:trofeu:` / `:gg:` ➔ 🏆
 
-### 5. Botão de Minimizar e Modo Fantasma (Transparência ao Mover)
+### 5. Controles de Cabeçalho: Timestamp (🕒), Modo Fantasma (👻) e Minimizar (—)
 
-No canto superior direito da barra de abas do chat, o jogador encontra dois controles de conveniência:
+No canto superior direito da barra de abas do chat, o jogador encontra três controles de conveniência:
+- **Timestamp / Horário (`🕒`)**: Alternador para exibir ou ocultar o horário exato de cada mensagem (ex: `[02:30] Nome: Olá`). Ativa e desativa instantaneamente em todas as mensagens e lembra a preferência no `localStorage`.
+- **Modo Fantasma 👻 (`nythera_chat_ghost`)**: Alternador que ativa a transparência dinâmica. Enquanto o herói caminha pelo mapa, o chat fica quase invisível (`opacity: 0.15`) e não intercepta cliques, permitindo enxergar o caminho e os monstros livremente. Ao parar ou passar o mouse sobre o chat, a opacidade retorna instantaneamente a 100%.
 - **Minimizar / Restaurar (`—` / `▲`)**: Recolhe a janela de chat para uma barra minimalista de 28px no canto da tela, liberando totalmente a visão do mapa. Pressionar `Enter` restaura o chat e foca o campo de texto automaticamente.
-- **Modo Fantasma 👻 (`nythera_chat_ghost`)**: Alternador que ativa a transparência dinâmica. Quando ativado:
-  - Enquanto o herói estiver caminhando pelo mapa, o chat fica quase invisível (`opacity: 0.15`) e não intercepta cliques, permitindo enxergar o caminho e os monstros livremente.
-  - Ao parar de andar ou passar o mouse sobre o chat, a opacidade e a interatividade retornam instantaneamente a 100%.
-  - A preferência do jogador é salva no `localStorage` do navegador.
 
 ### 6. Notificações e Badges Não-Lidas
 - Quando chega uma mensagem em uma aba que não está visível no momento (ex: você está na aba *Local* e recebe um sussurro no *Privado*), um ponto dourado acende na respectiva aba.
