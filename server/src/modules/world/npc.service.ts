@@ -29,35 +29,11 @@ export class EventService {
   }
 
   private async replayEvent(characterId: string, list: any[], choices: number[], idempotencyPrefix: string) {
-    let choiceIndex = 0;
-    let skipDepth = 0;
-    
     // Aggregated rewards to apply in a single transaction
     let goldChange = 0;
     const itemsGained: any[] = [];
 
-    for (let i = 0; i < list.length; i++) {
-      const cmd = list[i];
-      
-      // If we are skipping (because we took a different branch)
-      if (skipDepth > 0) {
-        if (cmd.code === 0) {
-          // Branch end might not be 0, RM uses indent for branching.
-          // RM MZ uses indent levels!
-        }
-      }
-
-      // Instead of complex branching logic with skipDepth, we can just use the `indent` field 
-      // provided by RM MZ. We only process commands whose indent matches our current active indent.
-      // But actually, simple state machine:
-      // When we hit 402 (When [Choice X]):
-      //   Check if cmd.parameters[0] === choices[choiceIndex].
-      //   If yes, we enter this branch.
-      //   If no, we ignore until we hit the next 402 or 404 (End of Choices).
-    }
-
-    // ACTUALLY, a simpler way without full indent parsing: 
-    // We can just filter the command list to the executed path!
+    // Filter the command list to the executed path based on user choices
     const executedPath = this.extractExecutedPath(list, choices);
 
     for (const cmd of executedPath) {

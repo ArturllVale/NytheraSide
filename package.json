@@ -1,12 +1,31 @@
 {
-    "name": "rmmz-game",
-    "main": "index.html",
-    "chromium-args": "--force-color-profile=srgb",
-    "window": {
-        "title": "NytheraSide",
-        "width": 1280,
-        "height": 720,
-        "position": "center",
-        "icon": "icon/icon.png"
-    }
+  "name": "rmmz-game",
+  "private": true,
+  "main": "index.html",
+  "chromium-args": "--force-color-profile=srgb",
+  "window": {
+    "title": "NytheraSide",
+    "width": 1280,
+    "height": 720,
+    "position": "center",
+    "icon": "icon/icon.png"
+  },
+  "workspaces": [
+    "packages/*",
+    "server",
+    "tools/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=@nythera/shared --workspace=@nythera/content-schema && npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "eslint-import-resolver-typescript": "^3.10.1",
+    "eslint-plugin-import-x": "^4.17.1",
+    "typescript-eslint": "^8.70.0"
+  }
 }
