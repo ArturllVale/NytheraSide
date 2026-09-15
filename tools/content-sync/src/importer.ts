@@ -19,7 +19,13 @@ export async function importOnce() {
     'Troops.json',
     'States.json',
     'System.json',
+    'CommonEvents.json',
   ];
+
+  const fs = await import('fs');
+  const allFiles = fs.readdirSync(contentDataPath);
+  const mapFiles = allFiles.filter(f => f.match(/^Map\d{3}\.json$/));
+  files.push(...mapFiles);
 
   const payload: Record<string, any> = {};
 

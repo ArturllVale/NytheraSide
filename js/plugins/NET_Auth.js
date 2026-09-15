@@ -561,21 +561,31 @@ window.NET = window.NET || {};
       var formRegister = document.getElementById('nythera-register-form');
 
       if (tabName === 'login') {
-        tabLogin.style.color = '#f7d27e';
-        tabLogin.style.borderBottom = '2px solid #f7d27e';
-        tabRegister.style.color = '#94a3b8';
-        tabRegister.style.borderBottom = 'none';
-        formLogin.style.display = 'block';
-        formRegister.style.display = 'none';
-        document.getElementById('nythera-login-email').focus();
+        if (tabLogin) {
+          tabLogin.style.color = '#f7d27e';
+          tabLogin.style.borderBottom = '2px solid #f7d27e';
+        }
+        if (tabRegister) {
+          tabRegister.style.color = '#94a3b8';
+          tabRegister.style.borderBottom = 'none';
+        }
+        if (formLogin) formLogin.style.display = 'block';
+        if (formRegister) formRegister.style.display = 'none';
+        var loginEmail = document.getElementById('nythera-login-email');
+        if (loginEmail) loginEmail.focus();
       } else {
-        tabRegister.style.color = '#f7d27e';
-        tabRegister.style.borderBottom = '2px solid #f7d27e';
-        tabLogin.style.color = '#94a3b8';
-        tabLogin.style.borderBottom = 'none';
-        formLogin.style.display = 'none';
-        formRegister.style.display = 'block';
-        document.getElementById('nythera-reg-username').focus();
+        if (tabRegister) {
+          tabRegister.style.color = '#f7d27e';
+          tabRegister.style.borderBottom = '2px solid #f7d27e';
+        }
+        if (tabLogin) {
+          tabLogin.style.color = '#94a3b8';
+          tabLogin.style.borderBottom = 'none';
+        }
+        if (formLogin) formLogin.style.display = 'none';
+        if (formRegister) formRegister.style.display = 'block';
+        var regEmail = document.getElementById('nythera-reg-email');
+        if (regEmail) regEmail.focus();
       }
     },
 
@@ -1171,7 +1181,7 @@ window.NET = window.NET || {};
     nameInput.addEventListener('keyup', this._stopKeyProp);
     nameInput.addEventListener('keypress', this._stopKeyProp);
     modal.appendChild(nameInput);
-    setTimeout(function() { nameInput.focus(); }, 100);
+    setTimeout(function() { if (nameInput) nameInput.focus(); }, 100);
 
     var alertBox = document.createElement('div');
     alertBox.className = 'nythera-alert';

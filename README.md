@@ -12,6 +12,7 @@ O cliente é responsável unicamente pela renderização de sprites, animações
 - [Funcionalidades do Jogo](#-funcionalidades-do-jogo)
 - [Sistema de Roles e Privilégios VIP](#-sistema-de-roles-e-privilégios-vip)
 - [Sistema de Encontros por Região (Region Control)](#-sistema-de-encontros-por-região-region-control)
+- [Sistema de NPCs e Diálogos (Server-Authoritative)](#-sistema-de-npcs-e-diálogos-server-authoritative)
 - [Estrutura do Repositório](#-estrutura-do-repositório)
 - [Início Rápido para Desenvolvedores](#-início-rápido-para-desenvolvedores)
 - [Protocolo de Comunicação WebSocket](#-protocolo-de-comunicação-websocket)
@@ -230,6 +231,24 @@ Pelo **Gerenciador de Plugins (`F10`)** em `Nythera_RegionControl`:
 - Configure a `Região 1` padrão.
 - Adicione structs em `Regiões Globais` ou `Sobrescritas por Mapa`.
 - Ajuste os `Passos de Graça` (padrão: 5 passos livres após vencer um combate).
+
+---
+
+## 🗣️ Sistema de Eventos Nativos e NPCs (Server-Authoritative Replay)
+
+O NytheraSide valoriza o uso do editor nativo do RPG Maker MZ. Para criar diálogos e quests, você usa os comandos normais do editor (Show Text, Show Choices, Change Gold), e nós garantimos que não haja trapaças!
+
+### Como Funciona (A Mágica)
+Em vez de desenhar menus customizados que perdem os recursos do MZ, o cliente executa o evento localmente exibindo todos os diálogos normalmente. No entanto, o cliente é **bloqueado de receber recompensas locais**. Ao finalizar o diálogo, o cliente envia silenciosamente o histórico das suas escolhas para o servidor. 
+O servidor então pega o `Map.json` original, **repete os passos do seu diálogo** utilizando o histórico de escolhas recebido, e caso o fluxo passe por um comando de "Change Gold" ou "Gain Item", o servidor concede o item diretamente no banco de dados, protegendo o jogo de hackers.
+
+### Como Adicionar um NPC / Quest
+
+1. **Crie no RPG Maker MZ:** Faça seu evento de NPC normalmente (adicione textos, escolhas e recompensas).
+2. **Marque para Sincronização:** Para que o cliente saiba que esse evento deve enviar as recompensas pro servidor, você deve marcá-lo.
+   - **Nome do Evento:** Insira `[NPC]` no nome (ex: `Ferreiro [NPC]`).
+   - **Notas do Evento:** Adicione `<sync>` nas propriedades do evento.
+3. **Salve e Publique:** Ao salvar o projeto, a ferramenta `tools/content-sync` enviará o novo `Map*.json` ao backend, que estará pronto para simular e entregar as recompensas desse evento de forma 100% segura.
 
 ---
 

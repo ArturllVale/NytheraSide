@@ -115,7 +115,12 @@ export function normalizeContent(filename: string, data: unknown) {
       return normalizeArrayFile(States, data);
     case 'System.json':
       return normalizeSystem(data);
+    case 'CommonEvents.json':
+      return data; // Passed raw for now
     default:
+      if (filename.match(/^Map\d{3}\.json$/)) {
+        return data; // Passed raw for now
+      }
       throw new Error(`Unknown file: ${filename}`);
   }
 }

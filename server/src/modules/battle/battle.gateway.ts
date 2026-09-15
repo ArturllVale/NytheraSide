@@ -86,6 +86,12 @@ export default async function battleGateway(fastify: FastifyInstance) {
           const vipInfo = await authService.updateVipStatus(userId, payload.action, payload.days || 7);
           send(socket, { type: 'CMD_VIP_RES', ...vipInfo, message: payload.action === 1 ? 'Status VIP atualizado.' : 'Status VIP revogado.' }); return;
         }
+        if (payload.type === 'EVENT_SYNC_REQ') {
+          const { EventService } = await import('../world/npc.service');
+          const eventService = new EventService();
+          await eventService.syncEvent(characterId, payload.mapId, payload.eventId, payload.choices);
+          return;
+        }
       } catch (err: any) { fastify.log.warn({ err: err?.message, characterId }, 'websocket message rejected'); send(socket, { type: 'ERROR_RES', message: err?.message || 'Erro desconhecido' }); }
     });
   });

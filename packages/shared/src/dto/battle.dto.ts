@@ -68,6 +68,12 @@ export const BattleWsClientPayloadSchema = z.discriminatedUnion('type', [
     action: z.number().int(), // 1 = grant, 0 = revoke
     days: z.number().int().optional()
   }),
+  z.object({
+    type: z.literal('EVENT_SYNC_REQ'),
+    mapId: z.number().int(),
+    eventId: z.number().int(),
+    choices: z.array(z.number().int())
+  }),
 ]);
 
 export type BattleWsClientPayload = z.infer<typeof BattleWsClientPayloadSchema>;
