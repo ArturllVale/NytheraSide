@@ -7,10 +7,11 @@ import { rateLimiter } from '../../infra/ratelimit';
 import { MovementService, type MovementState } from '../world/movement.service';
 import { PositionPersistenceService } from '../world/position-persistence.service';
 import { WorldState, type WorldSocket } from '../world/world-state';
+import { chatFilterService } from '../world/chat-filter.service';
 
 const OPEN = 1;
 const AUTH_TIMEOUT_MS = 15_000;
-const MAX_MESSAGES_PER_MINUTE = 180;
+const MAX_MESSAGES_PER_MINUTE = 3600;
 const MAX_MOVES_PER_SECOND = 20;
 
 function send(socket: WorldSocket, payload: unknown) { if (socket.readyState === OPEN) socket.send(JSON.stringify(payload)); }
@@ -27,6 +28,8 @@ export default async function battleGateway(fastify: FastifyInstance) {
     const authService = new AuthService();
     let characterId: string | null = null;
     let userId: string | null = null;
+    let charName: string = 'Player';
+    let userRole: string = 'normal';
     let activeBattleId: string | null = null;
     let current: MovementState | null = null;
     let cleanedUp = false;
@@ -63,7 +66,7 @@ export default async function battleGateway(fastify: FastifyInstance) {
           const user = await prisma.user.findUnique({ where: { id: session.userId } });
           if (!user) throw new Error('Usuário não encontrado');
           let baseStats: any = {}; try { baseStats = JSON.parse(char.base_stats); } catch { /* legacy malformed data uses defaults */ }
-          characterId = char.id; userId = session.userId; current = { mapId: char.map_id, x: char.position_x, y: char.position_y, direction: char.direction, updatedAt: Date.now() }; clearTimeout(authTimeout);
+          characterId = char.id; userId = session.userId; charName = char.name; userRole = user.role; current = { mapId: char.map_id, x: char.position_x, y: char.position_y, direction: char.direction, updatedAt: Date.now() }; clearTimeout(authTimeout);
           send(socket, { type: 'AUTH_RES', success: true, character: { id: char.id, name: char.name, actorTemplateId: char.actor_template_id, mapId: char.map_id, x: char.position_x, y: char.position_y, direction: char.direction, characterName: baseStats?.actor?.characterName || 'Actor1', characterIndex: baseStats?.actor?.characterIndex ?? 0 }, user: { role: user.role, isVip: isUserVip(user), vipUntil: user.vip_until?.toISOString() ?? null } });
           fastify.log.info({ characterId, userId }, 'websocket authenticated'); return;
         }
@@ -76,7 +79,7 @@ export default async function battleGateway(fastify: FastifyInstance) {
           positions.markDirty(characterId, current);
           if (previousMapId !== current.mapId) { world.remove(characterId, previousMapId); world.broadcast(previousMapId); await positions.flushCharacter(characterId); }
           const player: MapPlayer = { id: characterId, ...payload.payload };
-          world.upsert({ ...player, socket }); world.broadcast(current.mapId); return;
+          world.upsert({ ...player, playerName: charName, socket }); world.broadcast(current.mapId); return;
         }
         if (payload.type === 'BATTLE_START_REQ') { const { state } = await battleService.startBattle(characterId, payload.troopId, payload.enemyIds); activeBattleId = state.id; send(socket, { type: 'BATTLE_UPDATE_RES', state, events: [] }); return; }
         if (payload.type === 'BATTLE_COMMAND_REQ') { if (!activeBattleId) throw new Error('Nenhuma batalha ativa'); if (await rateLimiter.increment(`ws:battle:${characterId}`, 1) > 8) throw new Error('Comandos de batalha muito frequentes'); const { state, events } = await battleService.submitCommand(activeBattleId, characterId, payload.command); send(socket, { type: 'BATTLE_UPDATE_RES', state, events }); return; }
@@ -90,6 +93,50 @@ export default async function battleGateway(fastify: FastifyInstance) {
           const { EventService } = await import('../world/npc.service');
           const eventService = new EventService();
           await eventService.syncEvent(characterId, payload.mapId, payload.eventId, payload.choices);
+          return;
+        }
+        if (payload.type === 'CHAT_MSG_REQ') {
+          const filterResult = chatFilterService.validateAndFilter(characterId, payload.message);
+          if (!filterResult.allowed) {
+            send(socket, {
+              type: 'CHAT_MSG_RES',
+              channel: 'system',
+              sender: 'Sistema',
+              role: 'system',
+              message: filterResult.reason || 'Mensagem não permitida.'
+            });
+            return;
+          }
+
+          const cleanMessage = filterResult.filteredText;
+          if (payload.channel === 'whisper') {
+            if (!payload.target) {
+              send(socket, {
+                type: 'CHAT_MSG_RES',
+                channel: 'system',
+                sender: 'Sistema',
+                role: 'system',
+                message: 'Destinatário não informado para mensagem privada.'
+              });
+              return;
+            }
+            world.sendWhisper(socket, characterId, charName, userRole, payload.target, cleanMessage);
+          } else if (payload.channel === 'system') {
+            const user = await prisma.user.findUnique({ where: { id: userId } });
+            if (user?.role !== 'admin') {
+              send(socket, {
+                type: 'CHAT_MSG_RES',
+                channel: 'system',
+                sender: 'Sistema',
+                role: 'system',
+                message: 'Apenas administradores podem enviar anúncios de sistema.'
+              });
+              return;
+            }
+            world.broadcastChat('system', characterId, charName, userRole, cleanMessage);
+          } else {
+            world.broadcastChat(payload.channel, characterId, charName, userRole, cleanMessage, current.mapId);
+          }
           return;
         }
       } catch (err: any) { fastify.log.warn({ err: err?.message, characterId }, 'websocket message rejected'); send(socket, { type: 'ERROR_RES', message: err?.message || 'Erro desconhecido' }); }

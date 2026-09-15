@@ -287,6 +287,9 @@
         _netPlayers = {};
         _netSprites = {};
     }
+    
+    window.getNetPlayer = function(id) { return _netPlayers[id]; };
+    window.getNetSprite = function(id) { return _netSprites[id]; };
 
     window._injectNetSprite = function(character, targetSpriteset) {
         var id = character._netId || character._spriteId;

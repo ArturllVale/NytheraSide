@@ -1,25 +1,26 @@
 /*:
  * @target MZ
- * @plugindesc Compact Pixel-Style MMORPG HUD (Fiel ao Protótipo)
- * @author Antigravity
+ * @plugindesc Modern Dark-Glass MMORPG HUD (NytheraSide Edition)
+ * @author Antigravity & Artur Vale
  *
  * @help Nythera_HUD.js
  *
- * Interface compacta perfeitamente integrada ao estilo pixel art:
- * - HUD Principal compacta (Avatar, Lv, Nome, Pílulas de HP Verde, MP Azul e EXP)
- * - HUD de Acompanhantes compacta (Cards menores com avatar, nome, nível e HP verde)
- * - Minimapa discreto e funcional
- * - Nameplates no mapa com barra de HP verde compacta
+ * Interface moderna, compacta e elegante perfeitamente integrada ao estilo
+ * e design system do NytheraSide (Dark Glassmorphism com acentos dourados):
+ * - HUD Principal compacta (Avatar com moldura dourada e badge de nível, Nome, Classe, Barras de HP, MP e EXP)
+ * - HUD de Acompanhantes compacta (Cards de vidro escuro com avatar, nível e barra de HP)
+ * - Minimapa tático retangular em vidro escuro no canto superior direito
+ * - Nameplates sobre os personagens e barras aos pés com detecção de hover
  */
 
 (() => {
     'use strict';
 
     // =========================================================================
-    // DRAWING HELPERS (Capsules & Pixel-Friendly Panels)
+    // DRAWING HELPERS (Glassmorphic Containers & Vibrant Bars)
     // =========================================================================
     const UI = {
-        // Capsule / Pill shape (fully rounded ends)
+        // Pílula / Cápsula
         drawPill(ctx, x, y, w, h) {
             const r = h / 2;
             ctx.beginPath();
@@ -31,7 +32,7 @@
             ctx.closePath();
         },
 
-        // Rounded box with custom radius
+        // Retângulo com cantos arredondados
         roundRect(ctx, x, y, w, h, r = 6) {
             if (w < 2 * r) r = w / 2;
             if (h < 2 * r) r = h / 2;
@@ -44,109 +45,162 @@
             ctx.closePath();
         },
 
-        // Clean dark container matching the reference screenshot
-        drawContainer(ctx, x, y, w, h, radius = 8) {
+        // Container Dark Glassmorphism com borda dourada elegante
+        drawContainer(ctx, x, y, w, h, radius = 8, goldAccents = true) {
             ctx.save();
-            this.roundRect(ctx, x, y, w, h, radius);
 
-            // Dark navy/slate background
+            // 1. Sombra projetada sutil
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 3;
+
+            // 2. Fundo Dark Glass (Obsidiana / Ardósia Profundo)
+            this.roundRect(ctx, x, y, w, h, radius);
             const bg = ctx.createLinearGradient(x, y, x, y + h);
-            bg.addColorStop(0, 'rgba(12, 21, 34, 0.92)');
-            bg.addColorStop(1, 'rgba(8, 14, 24, 0.96)');
+            bg.addColorStop(0, 'rgba(10, 16, 28, 0.92)');
+            bg.addColorStop(1, 'rgba(5, 9, 18, 0.96)');
             ctx.fillStyle = bg;
             ctx.fill();
 
-            // Subtle dark blue border
-            ctx.lineWidth = 1.5;
-            ctx.strokeStyle = 'rgba(32, 62, 96, 0.9)';
+            ctx.shadowColor = 'transparent';
+
+            // 3. Borda fina com gradiente dourado sutil
+            ctx.lineWidth = 1.2;
+            const borderGrad = ctx.createLinearGradient(x, y, x + w, y + h);
+            if (goldAccents) {
+                borderGrad.addColorStop(0, 'rgba(247, 210, 126, 0.65)');
+                borderGrad.addColorStop(0.5, 'rgba(180, 130, 50, 0.35)');
+                borderGrad.addColorStop(1, 'rgba(212, 160, 62, 0.55)');
+            } else {
+                borderGrad.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
+                borderGrad.addColorStop(1, 'rgba(30, 58, 95, 0.4)');
+            }
+            ctx.strokeStyle = borderGrad;
             ctx.stroke();
 
-            // 1px inner soft highlight on top edge
+            // 4. Reflexo sutil de luz na borda superior
             ctx.beginPath();
             ctx.moveTo(x + radius, y + 1);
             ctx.lineTo(x + w - radius, y + 1);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
             ctx.lineWidth = 1;
             ctx.stroke();
+
+            // 5. Cantoneiras douradas decorativas
+            if (goldAccents && radius >= 6) {
+                ctx.strokeStyle = 'rgba(247, 210, 126, 0.75)';
+                ctx.lineWidth = 1.5;
+                const arm = 5;
+
+                // Top-Left
+                ctx.beginPath();
+                ctx.moveTo(x + 2, y + 2 + arm);
+                ctx.lineTo(x + 2, y + 2);
+                ctx.lineTo(x + 2 + arm, y + 2);
+                ctx.stroke();
+
+                // Top-Right
+                ctx.beginPath();
+                ctx.moveTo(x + w - 2 - arm, y + 2);
+                ctx.lineTo(x + w - 2, y + 2);
+                ctx.lineTo(x + w - 2, y + 2 + arm);
+                ctx.stroke();
+
+                // Bottom-Left
+                ctx.beginPath();
+                ctx.moveTo(x + 2, y + h - 2 - arm);
+                ctx.lineTo(x + 2, y + h - 2);
+                ctx.lineTo(x + 2 + arm, y + h - 2);
+                ctx.stroke();
+
+                // Bottom-Right
+                ctx.beginPath();
+                ctx.moveTo(x + w - 2 - arm, y + h - 2);
+                ctx.lineTo(x + w - 2, y + h - 2);
+                ctx.lineTo(x + w - 2, y + h - 2 - arm);
+                ctx.stroke();
+            }
 
             ctx.restore();
         },
 
-        // Pill-shaped status bar (exact style as in screenshot)
+        // Barra de status com gradiente vibrante, brilho de vidro e números nítidos
         drawPillBar(ctx, x, y, w, h, current, max, type = 'HP', label = '', customText = '') {
             ctx.save();
 
-            // 1. Background Well (Dark recessed capsule)
+            // 1. Calha escura rebaixada (Background Well)
             this.drawPill(ctx, x, y, w, h);
-            ctx.fillStyle = 'rgba(7, 12, 20, 0.95)';
+            ctx.fillStyle = 'rgba(4, 7, 13, 0.95)';
             ctx.fill();
             ctx.lineWidth = 1;
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.strokeStyle = 'rgba(20, 35, 55, 0.85)';
             ctx.stroke();
 
-            // 2. Filled Portion
+            // 2. Preenchimento Vibrante com Gradiente
             const rate = max > 0 ? Math.min(1, Math.max(0, current / max)) : 0;
             const fillW = Math.max(0, Math.floor(w * rate));
 
             if (fillW >= 4) {
                 ctx.save();
                 this.drawPill(ctx, x, y, w, h);
-                ctx.clip(); // Ensure fill respects the capsule bounds
+                ctx.clip(); // Garante formato de pílula
 
                 this.drawPill(ctx, x, y, fillW, h);
                 const grad = ctx.createLinearGradient(x, y, x, y + h);
 
                 if (type === 'HP') {
-                    // VERDE (Green)
-                    grad.addColorStop(0, '#4ade80'); // bright green highlight
-                    grad.addColorStop(0.3, '#22c55e');
-                    grad.addColorStop(0.8, '#16a34a');
-                    grad.addColorStop(1, '#15803d');
+                    // Esmeralda Radiante
+                    grad.addColorStop(0, '#6ee7b7');
+                    grad.addColorStop(0.25, '#22c55e');
+                    grad.addColorStop(0.75, '#16a34a');
+                    grad.addColorStop(1, '#14532d');
                 } else if (type === 'MP') {
-                    // AZUL (Blue)
-                    grad.addColorStop(0, '#60a5fa'); // bright blue highlight
-                    grad.addColorStop(0.3, '#3b82f6');
-                    grad.addColorStop(0.8, '#2563eb');
-                    grad.addColorStop(1, '#1d4ed8');
-                } else {
-                    // EXP (Sky Blue / Cyan)
+                    // Safira / Azul Azure
                     grad.addColorStop(0, '#93c5fd');
-                    grad.addColorStop(0.5, '#60a5fa');
-                    grad.addColorStop(1, '#3b82f6');
+                    grad.addColorStop(0.25, '#3b82f6');
+                    grad.addColorStop(0.75, '#2563eb');
+                    grad.addColorStop(1, '#1e3a8a');
+                } else {
+                    // Ametista / EXP Roxa
+                    grad.addColorStop(0, '#e9d5ff');
+                    grad.addColorStop(0.25, '#c084fc');
+                    grad.addColorStop(0.75, '#9333ea');
+                    grad.addColorStop(1, '#581c87');
                 }
 
                 ctx.fillStyle = grad;
                 ctx.fill();
 
-                // Specular gloss line on top half
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-                ctx.fillRect(x, y + 1, fillW, Math.floor(h * 0.35));
+                // Linha de reflexo especular no terço superior
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fillRect(x, y + 1, fillW, Math.floor(h * 0.38));
 
                 ctx.restore();
             }
 
-            // 3. Texts inside the bar (Clean, pixel-compatible typography)
-            ctx.font = `bold ${Math.max(9, Math.floor(h * 0.72))}px sans-serif`;
+            // 3. Textos da Barra (Tipografia limpa e legível)
+            ctx.font = `bold ${Math.max(9, Math.floor(h * 0.72))}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
             ctx.textBaseline = 'middle';
 
-            // Left Label (e.g. "HP" or "MP")
+            // Rótulo à Esquerda ("HP", "MP", "EXP")
             if (label) {
                 const labelX = x + 8;
                 const textY = y + h / 2;
 
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
                 ctx.fillText(label, labelX + 1, textY + 1);
                 ctx.fillStyle = '#ffffff';
                 ctx.fillText(label, labelX, textY);
             }
 
-            // Right Numbers (e.g. "2450 / 2450" or "62%")
+            // Números à Direita ("297 / 297" ou "65%")
             const valueText = customText || `${current} / ${max}`;
             const textRightX = x + w - 8;
             const textY = y + h / 2;
 
             ctx.textAlign = 'right';
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.92)';
             ctx.fillText(valueText, textRightX + 1, textY + 1);
             ctx.fillStyle = '#ffffff';
             ctx.fillText(valueText, textRightX, textY);
@@ -168,14 +222,18 @@
 
     Sprite_NytheraHUD.prototype.initialize = function() {
         Sprite.prototype.initialize.call(this);
-        this._minimapZoomIndex = 1; // 0: 0.75x, 1: 1.0x, 2: 1.5x
+        this._minimapZoomIndex = 1;
         this._minimapZooms = [0.75, 1.0, 1.5];
-        this._scale = 4; // 4px por tile
+        this._scale = 4;
 
         this.createSubSprites();
         this._lastHp = -1;
         this._lastMp = -1;
         this._lastExp = -1;
+        this._lastLevel = -1;
+        this._lastName = '';
+        this._lastFaceName = '';
+        this._lastFaceIndex = -1;
         this._lastPartyHp = [];
         this._lastPartyCount = 0;
         this._lastPlayerX = -1;
@@ -184,22 +242,22 @@
     };
 
     Sprite_NytheraHUD.prototype.createSubSprites = function() {
-        // Main HUD container: compact (260x88px)
-        this._mainHudSprite = new Sprite(new Bitmap(270, 96));
-        this._mainHudSprite.x = 12;
-        this._mainHudSprite.y = 12;
+        // Container principal da HUD: Compacto, proporcional e elegante (296 x 96px)
+        this._mainHudSprite = new Sprite(new Bitmap(304, 104));
+        this._mainHudSprite.x = 14;
+        this._mainHudSprite.y = 14;
         this.addChild(this._mainHudSprite);
 
-        // Companions container: compact (160x180px)
-        this._partyHudSprite = new Sprite(new Bitmap(170, 200));
-        this._partyHudSprite.x = 12;
-        this._partyHudSprite.y = 106;
+        // Companions container: mini cards logo abaixo da HUD principal
+        this._partyHudSprite = new Sprite(new Bitmap(180, 220));
+        this._partyHudSprite.x = 14;
+        this._partyHudSprite.y = 118;
         this.addChild(this._partyHudSprite);
 
-        // Minimap container (Janela Retangular Redesenhada 192x156px)
+        // Minimap container: Canto Superior Direito (196 x 160px)
         this._minimapSprite = new Sprite(new Bitmap(196, 160));
-        this._minimapSprite.x = Graphics.width - 208;
-        this._minimapSprite.y = 12;
+        this._minimapSprite.x = Graphics.width - 210;
+        this._minimapSprite.y = 14;
         this.addChild(this._minimapSprite);
     };
 
@@ -217,10 +275,20 @@
         const leader = $gameParty.leader();
         if (!leader) return false;
 
-        if (this._lastHp !== leader.hp || this._lastMp !== leader.mp || this._lastExp !== leader.currentExp()) {
+        if (this._lastHp !== leader.hp ||
+            this._lastMp !== leader.mp ||
+            this._lastExp !== leader.currentExp() ||
+            this._lastLevel !== leader.level ||
+            this._lastName !== leader.name() ||
+            this._lastFaceName !== leader.faceName() ||
+            this._lastFaceIndex !== leader.faceIndex()) {
             this._lastHp = leader.hp;
             this._lastMp = leader.mp;
             this._lastExp = leader.currentExp();
+            this._lastLevel = leader.level;
+            this._lastName = leader.name();
+            this._lastFaceName = leader.faceName();
+            this._lastFaceIndex = leader.faceIndex();
             return true;
         }
 
@@ -247,35 +315,40 @@
     };
 
     // -------------------------------------------------------------------------
-    // RENDER: COMPACT MAIN CHARACTER HUD (Fiel ao Protótipo)
+    // RENDER: MAIN CHARACTER HUD (Dark Glassmorphism com Acentos Dourados)
     // -------------------------------------------------------------------------
     Sprite_NytheraHUD.prototype.drawMainHud = function() {
         const bmp = this._mainHudSprite.bitmap;
         bmp.clear();
         const ctx = bmp.context;
         const leader = $gameParty.leader();
+        if (!leader) return;
 
-        const boxW = 256;
-        const boxH = 84;
-        const radius = 10;
+        const boxW = 296;
+        const boxH = 92;
+        const radius = 8;
 
-        // 1. Container Panel
-        UI.drawContainer(ctx, 0, 0, boxW, boxH, radius);
+        // 1. Painel Container em Dark Glass com Acentos Dourados
+        UI.drawContainer(ctx, 0, 0, boxW, boxH, radius, true);
 
-        // 2. Portrait (Left Well)
-        const avX = 7;
-        const avY = 7;
-        const avSize = 70;
-        const avR = 8;
+        // 2. Avatar / Retrato (Canto Esquerdo com Moldura Dourada)
+        const avX = 8;
+        const avY = 8;
+        const avSize = 76;
+        const avR = 6;
 
         ctx.save();
+        // Fundo do poço do avatar
         UI.roundRect(ctx, avX, avY, avSize, avSize, avR);
-        ctx.fillStyle = 'rgba(5, 10, 18, 0.9)';
+        ctx.fillStyle = 'rgba(4, 7, 12, 0.95)';
         ctx.fill();
-        ctx.strokeStyle = 'rgba(30, 60, 95, 0.7)';
-        ctx.lineWidth = 1;
+
+        // Borda dourada do avatar
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = 'rgba(212, 160, 62, 0.65)';
         ctx.stroke();
 
+        // Recorte do rosto do personagem
         ctx.save();
         UI.roundRect(ctx, avX + 1, avY + 1, avSize - 2, avSize - 2, avR - 1);
         ctx.clip();
@@ -295,61 +368,76 @@
             }
         }
         ctx.restore();
+
+        // 3. Badge de Nível Flutuante na Base do Avatar
+        const badgeW = 44;
+        const badgeH = 15;
+        const badgeX = avX + Math.floor((avSize - badgeW) / 2);
+        const badgeY = avY + avSize - badgeH + 2;
+
+        UI.roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 4);
+        ctx.fillStyle = 'rgba(10, 15, 25, 0.94)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(247, 210, 126, 0.85)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#fef08a';
+        ctx.fillText(`Lv. ${leader.level}`, badgeX + badgeW / 2, badgeY + badgeH / 2);
+
         ctx.restore();
 
-        // 3. Header: Level & Name
-        const barX = 84;
-        const barW = 164;
+        // 4. Cabeçalho: Nome e Vocação/Classe
+        const barX = avX + avSize + 10;
+        const barW = boxW - barX - 10;
 
         ctx.save();
-        ctx.font = 'bold 13px sans-serif';
+        ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
 
-        // Lv. 35
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillText(`Lv. ${leader.level}`, barX + 1, 9);
+        // Nome do Herói
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(`Lv. ${leader.level}`, barX, 8);
+        ctx.fillText(leader.name(), barX, 9);
 
-        // Arthas
-        const nameX = barX + 50;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillText(leader.name(), nameX + 1, 9);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(leader.name(), nameX, 8);
+        // Classe / Vocação (ao lado do nome)
+        const currentClass = leader.currentClass();
+        const className = (currentClass && currentClass.name) ? currentClass.name : '';
+        if (className) {
+            const nameWidth = ctx.measureText(leader.name()).width;
+            ctx.font = 'bold 10px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillText(className, barX + nameWidth + 8, 12);
+        }
         ctx.restore();
 
-        // 4. HP Bar (VERDE - Pill Shape)
-        UI.drawPillBar(ctx, barX, 26, barW, 15, leader.hp, leader.mhp, 'HP', 'HP');
+        // 5. Barra de HP (Esmeralda Vibrante)
+        UI.drawPillBar(ctx, barX, 29, barW, 15, leader.hp, leader.mhp, 'HP', 'HP');
 
-        // 5. MP Bar (AZUL - Pill Shape)
-        UI.drawPillBar(ctx, barX, 44, barW, 15, leader.mp, leader.mmp, 'MP', 'MP');
+        // 6. Barra de MP (Safira Azul Vibrante)
+        UI.drawPillBar(ctx, barX, 48, barW, 15, leader.mp, leader.mmp, 'MP', 'MP');
 
-        // 6. EXP Bar (Sky Blue / Cyan Pill)
+        // 7. Barra de EXP (Ametista Roxa com Porcentagem)
         const curLvlExp = leader.currentLevelExp();
         const nextLvlExp = leader.nextLevelExp();
         const exp = Math.max(0, leader.currentExp() - curLvlExp);
         const maxExp = Math.max(1, nextLvlExp - curLvlExp);
         const percent = Math.floor((exp / maxExp) * 100);
 
-        // EXP text label outside
-        ctx.save();
-        ctx.font = 'bold 10px sans-serif';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText('EXP', barX, 68);
-
-        // EXP fill pill
-        const expBarX = barX + 26;
-        const expBarW = barW - 26;
-        UI.drawPillBar(ctx, expBarX, 62, expBarW, 12, exp, maxExp, 'EXP', '', `${percent}%`);
-        ctx.restore();
+        UI.drawPillBar(ctx, barX, 67, barW, 13, exp, maxExp, 'EXP', 'EXP', `${percent}%`);
 
         bmp._baseTexture.update();
     };
 
     // -------------------------------------------------------------------------
-    // RENDER: COMPANIONS HUD (Fiel ao Protótipo)
+    // RENDER: COMPANIONS HUD (Mini Cards em Dark Glass)
     // -------------------------------------------------------------------------
     Sprite_NytheraHUD.prototype.drawPartyHud = function() {
         const bmp = this._partyHudSprite.bitmap;
@@ -358,27 +446,27 @@
         const members = $gameParty.members();
 
         let cardY = 0;
-        const cardW = 140;
-        const cardH = 38;
-        const gap = 4;
+        const cardW = 150;
+        const cardH = 40;
+        const gap = 5;
 
         for (let i = 1; i < members.length; i++) {
             const actor = members[i];
             if (!actor) continue;
 
-            // 1. Companion Card Container
-            UI.drawContainer(ctx, 0, cardY, cardW, cardH, 6);
+            // 1. Card Container (Dark Glass com Acentos Dourados)
+            UI.drawContainer(ctx, 0, cardY, cardW, cardH, 6, true);
 
-            // 2. Mini Avatar (Left)
-            const avX = 4;
-            const avY = cardY + 4;
+            // 2. Mini Avatar
+            const avX = 5;
+            const avY = cardY + 5;
             const avSize = 30;
 
             ctx.save();
             UI.roundRect(ctx, avX, avY, avSize, avSize, 4);
-            ctx.fillStyle = 'rgba(5, 10, 18, 0.9)';
+            ctx.fillStyle = 'rgba(4, 7, 12, 0.9)';
             ctx.fill();
-            ctx.strokeStyle = 'rgba(30, 60, 95, 0.6)';
+            ctx.strokeStyle = 'rgba(212, 160, 62, 0.65)';
             ctx.lineWidth = 1;
             ctx.stroke();
 
@@ -401,22 +489,22 @@
             ctx.restore();
             ctx.restore();
 
-            // 3. Name & Level
-            const textX = 39;
+            // 3. Nome e Nível
+            const textX = 40;
             ctx.save();
-            ctx.font = 'bold 11px sans-serif';
+            ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
             ctx.textBaseline = 'top';
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(actor.name(), textX, cardY + 4);
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillText(actor.name(), textX, cardY + 5);
 
-            ctx.font = '9px sans-serif';
-            ctx.fillStyle = '#94a3b8';
-            ctx.fillText(`Lv. ${actor.level}`, textX, cardY + 16);
+            ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+            ctx.fillStyle = '#fef08a';
+            ctx.fillText(`Lv. ${actor.level}`, textX, cardY + 17);
             ctx.restore();
 
-            // 4. Compact HP Bar (Pill Verde)
+            // 4. Barra de HP Compacta
             const barX = textX;
-            const barY = cardY + 27;
+            const barY = cardY + 28;
             const barW = cardW - barX - 6;
             const barH = 6;
 
@@ -430,8 +518,32 @@
     };
 
     // -------------------------------------------------------------------------
-    // RENDER: RECTANGULAR MINIMAP WINDOW (Redesign Profissional MMORPG)
+    // RENDER: RECTANGULAR MINIMAP WINDOW (Dark Glassmorphic Tactical Map)
     // -------------------------------------------------------------------------
+    Sprite_NytheraHUD.prototype.getMapName = function() {
+        if (!$gameMap || !$gameMap.mapId()) return '';
+
+        // 1. Tenta pegar o Nome de Exibição configurado no RPG Maker ($dataMap.displayName)
+        if ($gameMap.displayName && typeof $gameMap.displayName === 'function') {
+            const disp = $gameMap.displayName();
+            if (disp && disp.trim().length > 0) {
+                return disp.trim();
+            }
+        }
+
+        // 2. Se não houver Nome de Exibição, pega o Nome do mapa cadastrado na árvore ($dataMapInfos)
+        const mapId = $gameMap.mapId();
+        if (window.$dataMapInfos && $dataMapInfos[mapId] && $dataMapInfos[mapId].name) {
+            const name = $dataMapInfos[mapId].name.trim();
+            if (name.length > 0) {
+                return name;
+            }
+        }
+
+        // 3. Fallback neutro
+        return `Mapa ${mapId}`;
+    };
+
     Sprite_NytheraHUD.prototype.buildMapCache = function() {
         if (!$gameMap || !$gameMap.mapId()) return;
         this._cachedMapId = $gameMap.mapId();
@@ -439,10 +551,6 @@
         const mapW = $gameMap.width();
         const mapH = $gameMap.height();
 
-        // Escala adaptativa inteligente baseada nas dimensões do mapa:
-        // Mapas compactos (< 25 tiles): 12px/tile (preenche bem sem ficar minúsculo)
-        // Mapas médios (25 a 50 tiles): 10px/tile
-        // Mapas extensos (> 50 tiles): 8px/tile
         let baseScale = 10;
         if (mapW < 25 && mapH < 25) {
             baseScale = 12;
@@ -455,7 +563,6 @@
         this._cachedMapBitmap = new Bitmap(mapW * scale, mapH * scale);
         const cctx = this._cachedMapBitmap.context;
 
-        // Pré-calcular passabilidade e terrenos para performance otimizada
         const passable = [];
         const water = [];
         for (let x = 0; x < mapW; x++) {
@@ -473,35 +580,29 @@
             }
         }
 
-        // 1. Passada de Terreno Base (Cinza Ardósia Tático / Água Oceânica)
+        // Passada de Terreno Base
         for (let x = 0; x < mapW; x++) {
             for (let y = 0; y < mapH; y++) {
                 if (water[x][y]) {
-                    // Água: Azul marinho profundo sofisticado
                     cctx.fillStyle = '#0b1d30';
                     cctx.fillRect(x * scale, y * scale, scale, scale);
                 } else if (passable[x][y]) {
-                    // Chão caminhável: Ardósia grafite tática suave e uniforme
                     cctx.fillStyle = '#1a2432';
                     cctx.fillRect(x * scale, y * scale, scale, scale);
-
-                    // Micro-grade arquitetural ultra sutil (apenas 2% de opacidade)
                     cctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
                     cctx.lineWidth = 0.5;
                     cctx.strokeRect(x * scale + 0.5, y * scale + 0.5, scale - 1, scale - 1);
                 } else {
-                    // Obstáculos / Paredes / Edifícios: Preto obsidiana rico
                     cctx.fillStyle = '#080c14';
                     cctx.fillRect(x * scale, y * scale, scale, scale);
                 }
             }
         }
 
-        // 2. Passada de Relevo 3D, Contornos Arquiteturais e Sombras Projetadas
+        // Passada de Relevo e Contornos Arquiteturais
         for (let x = 0; x < mapW; x++) {
             for (let y = 0; y < mapH; y++) {
                 if (water[x][y]) {
-                    // Borda de costa quando a água toca terra caminhável
                     const touchesLand = (x > 0 && passable[x - 1][y]) ||
                                         (x < mapW - 1 && passable[x + 1][y]) ||
                                         (y > 0 && passable[x][y - 1]) ||
@@ -512,25 +613,21 @@
                         cctx.strokeRect(x * scale + 0.5, y * scale + 0.5, scale - 1, scale - 1);
                     }
                 } else if (!passable[x][y]) {
-                    // Contorno elegante nos limites entre obstáculos e chão caminhável
                     cctx.strokeStyle = '#203348';
                     cctx.lineWidth = 1;
 
-                    // Borda esquerda
                     if (x > 0 && passable[x - 1][y]) {
                         cctx.beginPath();
                         cctx.moveTo(x * scale + 0.5, y * scale);
                         cctx.lineTo(x * scale + 0.5, (y + 1) * scale);
                         cctx.stroke();
                     }
-                    // Borda direita
                     if (x < mapW - 1 && passable[x + 1][y]) {
                         cctx.beginPath();
                         cctx.moveTo((x + 1) * scale - 0.5, y * scale);
                         cctx.lineTo((x + 1) * scale - 0.5, (y + 1) * scale);
                         cctx.stroke();
                     }
-                    // Borda superior e realce de luz no topo do muro/telhado
                     if (y > 0 && passable[x][y - 1]) {
                         cctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
                         cctx.beginPath();
@@ -539,14 +636,12 @@
                         cctx.stroke();
                         cctx.strokeStyle = '#203348';
                     }
-                    // Borda inferior e projeção de sombra suave para o sul
                     if (y < mapH - 1 && passable[x][y + 1]) {
                         cctx.beginPath();
                         cctx.moveTo(x * scale, (y + 1) * scale - 0.5);
                         cctx.lineTo((x + 1) * scale, (y + 1) * scale - 0.5);
                         cctx.stroke();
 
-                        // Sombra projetada no chão caminhável ao sul (profundidade 3D imediata)
                         const shadowH = Math.min(4, Math.floor(scale * 0.35));
                         cctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
                         cctx.fillRect(x * scale, (y + 1) * scale, scale, shadowH);
@@ -577,10 +672,10 @@
 
         const vx = 4;
         const vy = 22;
-        const vw = winW - 8;  // 186px
-        const vh = winH - 26; // 122px
+        const vw = winW - 8;
+        const vh = winH - 26;
 
-        // Tratamento de cliques nos botões de Zoom [+] e [-]
+        // Tratamento de cliques nos botões de Zoom
         const mouseX = TouchInput.x;
         const mouseY = TouchInput.y;
         const isClick = TouchInput.isTriggered();
@@ -610,41 +705,55 @@
             }
         }
 
-        // 1. Moldura da Janela (Estilo Vidro Obsidiana idêntico à referência)
-        UI.drawContainer(ctx, 0, 0, winW, winH, 6);
+        // 1. Moldura da Janela em Dark Glass com Acentos Dourados
+        UI.drawContainer(ctx, 0, 0, winW, winH, 8, true);
 
-        // 2. Barra de Título (Header Clean "Mapa", sem botões de fechar/expandir)
+        // 2. Barra de Título (Header com estilo Dark Glass e Ouro)
+        const mapName = this.getMapName();
+
         ctx.save();
-        ctx.font = 'bold 11px sans-serif';
+        ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#f1f5f9';
+
+        // Ícone / Ornamento Dourado
+        ctx.fillStyle = '#fde047';
+        ctx.shadowColor = 'rgba(253, 224, 71, 0.4)';
+        ctx.shadowBlur = 4;
+        ctx.fillText('◆', 10, 11);
+
+        // Nome do Mapa
+        ctx.fillStyle = '#f8fafc';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
         ctx.shadowBlur = 2;
-        ctx.fillText('Mapa', 10, 11);
+        ctx.fillText(mapName, 22, 11);
         ctx.restore();
 
-        // Linha divisória sutil abaixo do header
-        ctx.strokeStyle = 'rgba(35, 60, 90, 0.65)';
+        // Linha divisória dourada sutil
+        const divGrad = ctx.createLinearGradient(4, 21.5, winW - 4, 21.5);
+        divGrad.addColorStop(0, 'rgba(247, 210, 126, 0.1)');
+        divGrad.addColorStop(0.25, 'rgba(247, 210, 126, 0.7)');
+        divGrad.addColorStop(0.75, 'rgba(247, 210, 126, 0.7)');
+        divGrad.addColorStop(1, 'rgba(247, 210, 126, 0.1)');
+        ctx.strokeStyle = divGrad;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(4, 21.5);
         ctx.lineTo(winW - 4, 21.5);
         ctx.stroke();
 
-        // 3. Viewport do Mapa (Máscara arredondada)
+        // 3. Viewport do Mapa
         ctx.save();
         UI.roundRect(ctx, vx, vy, vw, vh, 4);
         ctx.fillStyle = '#060a10';
         ctx.fill();
-        ctx.clip(); // Clip do viewport
+        ctx.clip();
 
         const cx = vx + vw / 2;
         const cy = vy + vh / 2;
         const px = $gamePlayer._realX;
         const py = $gamePlayer._realY;
 
-        // Desenho do mapa estilizado com ponto flutuante contínuo a 60 FPS
         if (this._cachedMapBitmap && this._cachedMapBitmap._canvas) {
             const mapW = $gameMap.width();
             const mapH = $gameMap.height();
@@ -659,7 +768,7 @@
             );
         }
 
-        // Vinheta atmosférica suave perimetral (escuridão sutil nas bordas do viewport)
+        // Vinheta atmosférica suave perimetral
         const radG = ctx.createRadialGradient(cx, cy, 20, cx, cy, Math.max(vw, vh) * 0.7);
         radG.addColorStop(0, 'rgba(0, 0, 0, 0)');
         radG.addColorStop(0.7, 'rgba(4, 8, 14, 0.15)');
@@ -667,7 +776,7 @@
         ctx.fillStyle = radG;
         ctx.fillRect(vx, vy, vw, vh);
 
-        // Outros Jogadores Conectados (Multiplayer via NET_MapBridge)
+        // Outros Jogadores Conectados
         if (window._netPlayers) {
             for (const id in window._netPlayers) {
                 const np = window._netPlayers[id];
@@ -677,12 +786,10 @@
                 if (Math.abs(edx) <= vw / 2 && Math.abs(edy) <= vh / 2) {
                     const nx = Math.round(cx + edx);
                     const ny = Math.round(cy + edy);
-                    // Halo de jogador conectado
                     ctx.beginPath();
                     ctx.arc(nx, ny, 5, 0, Math.PI * 2);
                     ctx.fillStyle = 'rgba(16, 185, 129, 0.25)';
                     ctx.fill();
-                    // Ponto esmeralda com contorno branco
                     ctx.beginPath();
                     ctx.arc(nx, ny, 3, 0, Math.PI * 2);
                     ctx.fillStyle = '#10b981';
@@ -694,7 +801,7 @@
             }
         }
 
-        // Marcadores de Eventos (NPCs, Missões, Inimigos)
+        // Marcadores de Eventos (NPCs, Quests, Inimigos)
         const events = $gameMap.events();
         for (const ev of events) {
             if (!ev || ev.isTransparent() || ev._erased) continue;
@@ -709,7 +816,6 @@
                 const isNpc = isQuest || evName.startsWith('NPC:');
 
                 if (isQuest) {
-                    // Ícone de Missão: Losango dourado com '!'
                     ctx.save();
                     ctx.translate(ex, ey);
                     ctx.rotate(Math.PI / 4);
@@ -730,7 +836,6 @@
                     ctx.fillText('!', ex, ey);
                     ctx.restore();
                 } else if (isNpc) {
-                    // NPC: Ponto dourado com contorno escuro
                     ctx.beginPath();
                     ctx.arc(ex, ey, 2.5, 0, Math.PI * 2);
                     ctx.fillStyle = '#fbbf24';
@@ -739,7 +844,6 @@
                     ctx.strokeStyle = '#000000';
                     ctx.stroke();
                 } else {
-                    // Inimigo / Monstro: Ponto vermelho rubi
                     ctx.beginPath();
                     ctx.arc(ex, ey, 2.5, 0, Math.PI * 2);
                     ctx.fillStyle = '#f43f5e';
@@ -751,22 +855,23 @@
             }
         }
 
-        // Bússola Norte no Canto Superior Esquerdo (Fiel à referência: elegante, flutuante)
+        // Bússola Norte (Estilo Dourado / Dark Glass)
         ctx.save();
         const compassX = vx + 12;
         const compassY = vy + 10;
-        ctx.font = 'bold 9px sans-serif';
+        ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
         ctx.shadowBlur = 3;
-        ctx.fillStyle = '#38bdf8';
+        ctx.fillStyle = '#fde047';
         ctx.fillText('▲', compassX, compassY);
-        ctx.font = 'bold 8px sans-serif';
+        ctx.font = 'bold 8px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.fillStyle = '#f8fafc';
         ctx.fillText('N', compassX, compassY + 9);
         ctx.restore();
 
-        // Marcador do Jogador (Chevron Vermelho de Alta Fidelidade com Contorno Branco)
+        // Marcador do Jogador
         let angle = 0;
         const dir = $gamePlayer.direction();
         if (dir === 8) angle = -Math.PI / 2;
@@ -806,72 +911,64 @@
         ctx.stroke();
         ctx.restore();
 
-        // 4. Placa Inferior Esquerda: Nome do Mapa e Coordenadas (Frosted Glass Pill)
-        const plaqueW = 104;
-        const plaqueH = 26;
+        // Placa Inferior Esquerda: Coordenadas (Estilo Dark Glass e Ouro)
+        const plaqueW = 76;
+        const plaqueH = 17;
         const plaqueX = vx + 4;
         const plaqueY = vy + vh - plaqueH - 4;
 
         ctx.save();
-        UI.roundRect(ctx, plaqueX, plaqueY, plaqueW, plaqueH, 4);
-        ctx.fillStyle = 'rgba(6, 12, 20, 0.88)';
+        UI.roundRect(ctx, plaqueX, plaqueY, plaqueW, plaqueH, 3);
+        ctx.fillStyle = 'rgba(6, 11, 20, 0.92)';
         ctx.fill();
-        ctx.strokeStyle = 'rgba(30, 52, 78, 0.8)';
+        ctx.strokeStyle = 'rgba(247, 210, 126, 0.55)';
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        const mapName = ($gameMap && $gameMap.displayName && $gameMap.displayName()) || 'Cidade de Valoria';
         const coordsText = `X: ${$gamePlayer.x}  Y: ${$gamePlayer.y}`;
-
-        ctx.font = 'bold 9px sans-serif';
-        ctx.textBaseline = 'top';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'left';
+        ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fde047';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
         ctx.shadowBlur = 2;
-        ctx.fillText(mapName, plaqueX + 6, plaqueY + 3);
-
-        ctx.font = 'bold 8px sans-serif';
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillText(coordsText, plaqueX + 6, plaqueY + 14);
+        ctx.fillText(coordsText, plaqueX + plaqueW / 2, plaqueY + plaqueH / 2);
         ctx.restore();
 
-        // 5. Botões de Zoom [+] e [-] no Canto Inferior Direito
-        // Botão [+]
+        // Botões de Zoom [+] e [-] (Estilo Dark Glass e Ouro)
         ctx.save();
         UI.roundRect(ctx, btnX, btnPlusY, btnSize, btnSize, 3);
-        ctx.fillStyle = isPlusHover ? 'rgba(20, 44, 72, 0.95)' : 'rgba(8, 16, 28, 0.88)';
+        ctx.fillStyle = isPlusHover ? 'rgba(32, 44, 64, 0.96)' : 'rgba(8, 14, 24, 0.9)';
         ctx.fill();
-        ctx.strokeStyle = isPlusHover ? 'rgba(56, 189, 248, 0.95)' : 'rgba(38, 70, 105, 0.75)';
+        ctx.strokeStyle = isPlusHover ? 'rgba(247, 210, 126, 0.95)' : 'rgba(212, 160, 62, 0.65)';
         ctx.lineWidth = 1;
         ctx.stroke();
         ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = isPlusHover ? '#fde047' : '#ffffff';
         ctx.fillText('+', btnX + btnSize / 2, btnPlusY + btnSize / 2);
 
-        // Botão [-]
         UI.roundRect(ctx, btnX, btnMinusY, btnSize, btnSize, 3);
-        ctx.fillStyle = isMinusHover ? 'rgba(20, 44, 72, 0.95)' : 'rgba(8, 16, 28, 0.88)';
+        ctx.fillStyle = isMinusHover ? 'rgba(32, 44, 64, 0.96)' : 'rgba(8, 14, 24, 0.9)';
         ctx.fill();
-        ctx.strokeStyle = isMinusHover ? 'rgba(56, 189, 248, 0.95)' : 'rgba(38, 70, 105, 0.75)';
+        ctx.strokeStyle = isMinusHover ? 'rgba(247, 210, 126, 0.95)' : 'rgba(212, 160, 62, 0.65)';
         ctx.lineWidth = 1;
         ctx.stroke();
+        ctx.fillStyle = isMinusHover ? '#fde047' : '#ffffff';
         ctx.fillText('−', btnX + btnSize / 2, btnMinusY + btnSize / 2);
         ctx.restore();
 
         ctx.restore(); // Fim do clip do viewport
 
-        // 6. Borda Interna de Proteção do Viewport
-        ctx.strokeStyle = 'rgba(28, 50, 78, 0.85)';
+        // Borda Interna do Viewport com acabamento dourado
+        ctx.strokeStyle = 'rgba(212, 160, 62, 0.4)';
         ctx.lineWidth = 1;
         UI.roundRect(ctx, vx, vy, vw, vh, 4);
         ctx.stroke();
 
         bmp._baseTexture.update();
     };
-
 
     // =========================================================================
     // SCENE HOOKS
@@ -892,7 +989,7 @@
     // Desativar botão de menu touch padrão na tela do mapa
     Scene_Map.prototype.createMenuButton = function() {};
 
-    // Desativar completamente abertura do menu por qualquer tecla (X, ESC, etc.), clique ou touch
+    // Desativar abertura do menu por qualquer tecla (X, ESC, etc.), clique ou touch
     Scene_Map.prototype.isMenuCalled = function() {
         return false;
     };
@@ -903,7 +1000,7 @@
         this.menuCalling = false;
     };
 
-    // Desativar corrida / dash com Shift (movimento padrão fixo estilo MMORPG)
+    // Desativar corrida / dash com Shift
     Game_Player.prototype.updateDashing = function() {
         this._dashing = false;
     };
@@ -915,7 +1012,7 @@
     };
 
     // =========================================================================
-    // PHASE 2: RAGNAROK-STYLE NAMEPLATES & FOOT BARS (HP VERDE / MP AZUL)
+    // PHASE 2: NAMEPLATES & FOOT BARS (HP VERDE / MP AZUL)
     // =========================================================================
 
     // 1. Nameplate (Acima da cabeça)
@@ -931,9 +1028,12 @@
         this._character = character;
         this.bitmap = new Bitmap(130, 20);
         this.anchor.x = 0.5;
-        this.anchor.y = 1;
-        this.y = -48; // Flutuando sobre a cabeça
+        this.anchor.y = 0;
+        // Move para debaixo da barra de HP (HP bar fica em y=2 e tem altura 12)
+        this.y = 14; 
         this.z = 8;
+        this.opacity = 0;
+        this.visible = false;
         this._lastName = '';
         this._lastColor = '';
     };
@@ -941,8 +1041,33 @@
     Sprite_CharacterName.prototype.update = function() {
         Sprite.prototype.update.call(this);
         if (this._character) {
+            this.updateHover();
             this.updateBitmap();
         }
+    };
+
+    Sprite_CharacterName.prototype.isMouseHovered = function() {
+        if (!this._character || !this._character.screenX) return false;
+        if (this._character.isTransparent && this._character.isTransparent()) return false;
+        const mx = TouchInput.x;
+        const my = TouchInput.y;
+        if (mx === undefined || my === undefined || mx < 0 || my < 0) return false;
+        const sx = this._character.screenX();
+        const sy = this._character.screenY();
+        const halfW = 24;
+        const h = 48;
+        return mx >= sx - halfW && mx <= sx + halfW && my >= sy - h && my <= sy + 14;
+    };
+
+    Sprite_CharacterName.prototype.updateHover = function() {
+        const hovered = this.isMouseHovered();
+        const targetOpacity = hovered ? 255 : 0;
+        if (this.opacity < targetOpacity) {
+            this.opacity = Math.min(255, this.opacity + 45);
+        } else if (this.opacity > targetOpacity) {
+            this.opacity = Math.max(0, this.opacity - 45);
+        }
+        this.visible = this.opacity > 0;
     };
 
     Sprite_CharacterName.prototype.updateBitmap = function() {
@@ -994,12 +1119,10 @@
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Contorno preto nítido estilo pixel
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.95)';
         ctx.lineWidth = 2.5;
         ctx.strokeText(name, cx, cy);
 
-        // Texto principal
         ctx.fillStyle = color;
         ctx.fillText(name, cx, cy);
         ctx.restore();
@@ -1021,9 +1144,9 @@
         this.bitmap = new Bitmap(40, 12);
         this.anchor.x = 0.5;
         this.anchor.y = 0;
-        this.y = 2; // Exatamente abaixo dos pés do sprite
+        this.y = 2;
         this.z = 7;
-        this.opacity = 0; // Invisível por padrão
+        this.opacity = 0;
         this.visible = false;
         this._lastHp = -1;
         this._lastMaxHp = -1;
@@ -1050,7 +1173,6 @@
         const sx = this._character.screenX();
         const sy = this._character.screenY();
 
-        // Verificação segura de colisão com dimensões padrão de tile (48x48)
         const halfW = 24;
         const h = 48;
 
@@ -1115,40 +1237,34 @@
         const barH = 3;
         const barX = Math.floor((40 - barW) / 2);
 
-        // --- BARRA DE HP (VERDE) ---
+        // Barra de HP (Verde)
         const hpY = 1;
-        // Fundo escuro (calha)
         ctx.fillStyle = '#0f172a';
         ctx.fillRect(barX, hpY, barW, barH);
 
-        // Preenchimento Verde
         const hpRate = Math.min(1, Math.max(0, hp / maxHp));
         const hpFillW = Math.floor(barW * hpRate);
         if (hpFillW > 0) {
-            ctx.fillStyle = '#22c55e'; // Verde vibrante
+            ctx.fillStyle = '#22c55e';
             ctx.fillRect(barX, hpY, hpFillW, barH);
         }
 
-        // Borda preta de 1px
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 1;
         ctx.strokeRect(barX - 0.5, hpY - 0.5, barW + 1, barH + 1);
 
-        // --- BARRA DE MP (AZUL) ---
+        // Barra de MP (Azul)
         const mpY = 5;
-        // Fundo escuro
         ctx.fillStyle = '#0f172a';
         ctx.fillRect(barX, mpY, barW, barH);
 
-        // Preenchimento Azul
         const mpRate = maxMp > 0 ? Math.min(1, Math.max(0, mp / maxMp)) : 0;
         const mpFillW = Math.floor(barW * mpRate);
         if (mpFillW > 0) {
-            ctx.fillStyle = '#3b82f6'; // Azul vibrante
+            ctx.fillStyle = '#3b82f6';
             ctx.fillRect(barX, mpY, mpFillW, barH);
         }
 
-        // Borda preta de 1px
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 1;
         ctx.strokeRect(barX - 0.5, mpY - 0.5, barW + 1, barH + 1);

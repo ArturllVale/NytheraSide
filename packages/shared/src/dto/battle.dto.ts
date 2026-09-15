@@ -74,6 +74,12 @@ export const BattleWsClientPayloadSchema = z.discriminatedUnion('type', [
     eventId: z.number().int(),
     choices: z.array(z.number().int())
   }),
+  z.object({
+    type: z.literal('CHAT_MSG_REQ'),
+    channel: z.enum(['global', 'local', 'whisper', 'system']),
+    target: z.string().optional(),
+    message: z.string().min(1).max(250)
+  }),
 ]);
 
 export type BattleWsClientPayload = z.infer<typeof BattleWsClientPayloadSchema>;
@@ -117,6 +123,15 @@ export const BattleWsServerPayloadSchema = z.discriminatedUnion('type', [
     isVip: z.boolean(),
     vipUntil: z.string().nullable().optional(),
     message: z.string().optional()
+  }),
+  z.object({
+    type: z.literal('CHAT_MSG_RES'),
+    channel: z.enum(['global', 'local', 'whisper', 'system']),
+    characterId: z.string().optional(),
+    sender: z.string(),
+    role: z.string(),
+    message: z.string(),
+    target: z.string().optional()
   }),
 ]);
 

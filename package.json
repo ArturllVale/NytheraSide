@@ -1,37 +1,12 @@
 {
-  "name": "nythera-monorepo",
-  "private": true,
-  "main": "index.html",
-  "chromium-args": "--force-color-profile=srgb",
-  "window": {
-    "title": "NytheraSide",
-    "width": 1280,
-    "height": 720,
-    "position": "center",
-    "icon": "icon/icon.png"
-  },
-  "workspaces": [
-    "server",
-    "packages/*",
-    "tools/*"
-  ],
-  "scripts": {
-    "build": "npm run build -w packages/shared -w packages/content-schema && npm run build -w tools/content-sync -w server",
-    "typecheck": "npm run typecheck --workspaces",
-    "lint": "npm run lint --workspaces",
-    "test": "npm run test --workspaces",
-    "db:generate:sqlite": "npm run db:generate:sqlite -w server"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.39.5",
-    "@types/node": "^20.19.0",
-    "eslint": "^9.39.5",
-    "eslint-import-resolver-typescript": "^3.8.3",
-    "eslint-plugin-import-x": "^4.17.1",
-    "eslint-plugin-prettier": "^5.2.3",
-    "prettier": "^3.5.3",
-    "typescript": "^5.9.2",
-    "typescript-eslint": "^8.70.0",
-    "vitest": "^1.6.0"
-  }
+    "name": "rmmz-game",
+    "main": "index.html",
+    "chromium-args": "--force-color-profile=srgb",
+    "window": {
+        "title": "NytheraSide",
+        "width": 1280,
+        "height": 720,
+        "position": "center",
+        "icon": "icon/icon.png"
+    }
 }

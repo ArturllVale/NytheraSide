@@ -120,7 +120,7 @@ Ao reconectar:
 - [x] **Fase 4 — Bridge cliente MZ (plugins)**: `NET_Auth`, `NET_Client`, `NET_BattleBridge`, `Nythera_HUD` e sincronização multiplayer de mapas via WebSocket.
 - [ ] **Fase 5 — Idle progression**: Offline progress catch-up com cap de 12h e simulação determinística.
 - [ ] **Fase 6 — Economia**: Inventário, mercado, trading e ledger transacional.
-- [ ] **Fase 7 — Social lite + World lite**: Chat global/canal, guildas e instanciamento de mapas.
+- [x] **Fase 7 — Social lite + World lite**: Chat global/canal implementado; pendente guildas e instanciamento de mapas.
 - [ ] **Fase 8 — LiveOps + Admin**: Painel administrativo, auditoria e controle de eventos.
 - [ ] **Fase 9 — Hardening**: Segurança reforçada, testes de carga e empacotamento.
 

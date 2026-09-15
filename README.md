@@ -12,7 +12,8 @@ O cliente é responsável unicamente pela renderização de sprites, animações
 - [Funcionalidades do Jogo](#-funcionalidades-do-jogo)
 - [Sistema de Roles e Privilégios VIP](#-sistema-de-roles-e-privilégios-vip)
 - [Sistema de Encontros por Região (Region Control)](#-sistema-de-encontros-por-região-region-control)
-- [Sistema de NPCs e Diálogos (Server-Authoritative)](#-sistema-de-npcs-e-diálogos-server-authoritative)
+- [Sistema de Eventos Nativos e NPCs (Server-Authoritative Replay)](#-sistema-de-eventos-nativos-e-npcs-server-authoritative-replay)
+- [Sistema de Chat Multicanal e Balões de Fala](#-sistema-de-chat-multicanal-e-balões-de-fala)
 - [Estrutura do Repositório](#-estrutura-do-repositório)
 - [Início Rápido para Desenvolvedores](#-início-rápido-para-desenvolvedores)
 - [Protocolo de Comunicação WebSocket](#-protocolo-de-comunicação-websocket)
@@ -78,6 +79,13 @@ O NytheraSide adota um modelo híbrido voltado a jogos online persistentes:
 - Interceptação de `BattleManager` do RPG Maker MZ para apresentação visual.
 - Envio de comandos de ataque e habilidades ao servidor (`BATTLE_COMMAND_REQ`).
 - Sincronização de eventos de animação (`ACTION_START`, `DAMAGE`, `HEAL`, `DEATH`, `BATTLE_WON`, `BATTLE_LOST`).
+
+### 5. Chat MMORPG Multicanal (`NET_Chat.js`)
+- **Interface Dark Glassmorphism**: Overlay HTML/CSS translúcido e responsivo posicionado sobre o canvas.
+- **4 Abas Independentes**: `Local`, `Global`, `Privado` e `Sistema`, cada uma com seu próprio histórico e rolagem.
+- **Balões de Fala (Speech Bubbles)**: Balões animados sobre a cabeça do personagem com formatação `| Nome: Mensagem |` e cores de cargo.
+- **Nameplates com Hover**: O nome do jogador fica posicionado aos pés, logo abaixo da barra de HP, aparecendo com fade suave apenas quando o mouse passa sobre o personagem.
+- **Anti-Spam Nativo**: Rate limiting no WebSocket protegendo o servidor contra sobrecarga.
 
 ---
 
@@ -252,6 +260,117 @@ O servidor então pega o `Map.json` original, **repete os passos do seu diálogo
 
 ---
 
+## 💬 Sistema de Chat Multicanal e Balões de Fala
+
+O NytheraSide inclui um sistema completo de chat MMORPG integrado (`js/plugins/NET_Chat.js`), com interface Dark Glassmorphism, 4 abas especializadas, balões de fala sobre os heróis e sincronização WebSocket em tempo real.
+
+### 1. As 4 Abas do Chat
+
+| Aba | Canal | Descrição |
+|---|---|---|
+| **Local** | `local` | Conversas entre jogadores presentes no mesmo mapa. Gera balão animado de fala sobre a cabeça do personagem. |
+| **Global** | `global` | Bate-papo transmitido para todo o servidor em tempo real (identificado por prefixo e tom alaranjado). |
+| **Privado** | `whisper` | Mensagens diretas (Sussurro / PM). Quem envia vê `[Para Nome]`, quem recebe vê `[De Nome]`. |
+| **Sistema** | `system` | Avisos do servidor, logs informativos, conexões e anúncios administrativos (modo somente leitura). |
+
+### 2. Comandos de Barra (Slash Commands)
+
+O jogador pode alternar de canal ou enviar mensagens privadas a partir de **qualquer aba**:
+
+| Comando | Sintaxe | Exemplo | Descrição |
+|---|---|---|---|
+| `/w` ou `/whisper` | `/w <Nome> <Mensagem>` | `/w Artur Olá guerreiro!` | Envia sussurro direto ao jogador indicado. |
+| `/tell` | `/tell <Nome> <Mensagem>` | `/tell Artur Vamos upar?` | Alias idêntico ao comando `/w`. |
+| `/g` | `/g <Mensagem>` | `/g Alguém para boss?` | Envia mensagem diretamente no canal Global. |
+| `/l` | `/l <Mensagem>` | `/l Preciso de cura aqui` | Envia mensagem diretamente no canal Local do mapa. |
+| `/help` | `/help` | `/help` | Exibe a lista de comandos no chat ativo. |
+
+> [!TIP]
+> **Dicas de Usabilidade**:
+> - Se você estiver na aba **Privado**, pode digitar diretamente `Nome: Mensagem` (ex: `Artur: Olá!`) que o sistema envia o sussurro automaticamente.
+> - Se o jogador de destino estiver offline ou com nome incorreto, o servidor avisa instantaneamente no chat: `Jogador "<Nome>" não foi encontrado ou está offline.`
+
+### 3. Balões de Fala sobre o Personagem (Speech Bubbles)
+- Sempre que alguém fala no canal **Local**, uma bolha estilizada é gerada na cabeça do herói (`Sprite_ChatBubble`).
+- **Formato**: `| Nome: Mensagem |`, com a cor do nome respeitando o cargo do jogador (Admin em vermelho `#ff6b6b`, VIP em verde `#69db7c`, jogador comum em dourado `#ffd280`).
+- **Substituição Inteligente**: Se o jogador falar novamente enquanto um balão anterior ainda estiver ativo, o anterior é substituído na hora, evitando sobreposição de textos.
+- **Duração**: Fica visível por 5 segundos acompanhando o movimento do personagem e desvanece suavemente (*fade out*).
+
+### 4. Suporte Completo a Emojis (Atalhos e Seletor Gráfico)
+
+O sistema conta com suporte nativo a emojis tanto na interface de texto das abas quanto nos **balões de fala sobre os heróis**:
+- **Seletor Gráfico (`😀`)**: Botão dedicado ao lado do campo de digitação que abre uma grade com emojis populares organizados para MMOs (reações, armas, itens, magias e símbolos).
+- **Conversão Automática de Atalhos**:
+  - `:)` ou `:-)` ➔ 😊
+  - `:D` ou `:-D` ➔ 😄
+  - `:(` ou `:-(` ➔ 😢
+  - `;)` ou `;-)` ➔ 😉
+  - `:p` ou `:P` ➔ 😛
+  - `xD` ou `XD` ➔ 😆
+  - `<3` ou `:heart:` ➔ ❤️
+  - `:fire:` ➔ 🔥
+  - `:sword:` ➔ ⚔️
+  - `:shield:` ➔ 🛡️
+  - `:gold:` ➔ 💰
+  - `:skull:` ➔ 💀
+  - `:crown:` ➔ 👑
+  - `:potion:` ➔ 🧪
+  - `:+1:` ou `:like:` ➔ 👍
+
+### 5. Botão de Minimizar e Modo Fantasma (Transparência ao Mover)
+
+No canto superior direito da barra de abas do chat, o jogador encontra dois controles de conveniência:
+- **Minimizar / Restaurar (`—` / `▲`)**: Recolhe a janela de chat para uma barra minimalista de 28px no canto da tela, liberando totalmente a visão do mapa. Pressionar `Enter` restaura o chat e foca o campo de texto automaticamente.
+- **Modo Fantasma 👻 (`nythera_chat_ghost`)**: Alternador que ativa a transparência dinâmica. Quando ativado:
+  - Enquanto o herói estiver caminhando pelo mapa, o chat fica quase invisível (`opacity: 0.15`) e não intercepta cliques, permitindo enxergar o caminho e os monstros livremente.
+  - Ao parar de andar ou passar o mouse sobre o chat, a opacidade e a interatividade retornam instantaneamente a 100%.
+  - A preferência do jogador é salva no `localStorage` do navegador.
+
+### 6. Notificações e Badges Não-Lidas
+- Quando chega uma mensagem em uma aba que não está visível no momento (ex: você está na aba *Local* e recebe um sussurro no *Privado*), um ponto dourado acende na respectiva aba.
+- Ao clicar na aba, o indicador de não-lidas é limpo automaticamente.
+- Cada aba mantém seu próprio histórico e barra de rolagem de forma independente.
+
+### 7. Atalho de Teclado
+- Pressionar **`Enter`** durante o gameplay foca diretamente o cursor no campo de texto da aba ativa (e expande o chat se estiver minimizado), sem necessidade de usar o mouse.
+- Enquanto o jogador digita no chat, os comandos de teclado não movem o herói pelo mapa.
+
+### 8. Filtro de Palavras e Anti-Flood Configurável (`server/src/config/chat-filter.json`)
+
+O servidor conta com um motor dedicado de moderação e fluidez (`ChatFilterService`), configurável através do arquivo JSON [server/src/config/chat-filter.json](server/src/config/chat-filter.json):
+
+```json
+{
+  "bannedWords": [
+    "hack",
+    "cheat",
+    "bot",
+    "exploits",
+    "palavrao1",
+    "palavrao2"
+  ],
+  "filterMode": "censor",
+  "censorReplacement": "***",
+  "repeatMessage": {
+    "maxRepeats": 3,
+    "windowSeconds": 10,
+    "cooldownSeconds": 5
+  },
+  "flood": {
+    "maxBurst": 6,
+    "windowSeconds": 3,
+    "cooldownSeconds": 4
+  }
+}
+```
+
+- **Liberdade de Conversa**: Jogadores têm total liberdade para digitar no ritmo natural de um MMO sem serem desconectados.
+- **Filtro de Palavras**: Permite configurar uma lista de termos proibidos e escolher entre censurar com máscara (`***`) ou bloquear o envio.
+- **Anti-Repetição (Spam Idêntico)**: Se um jogador enviar exatamente a mesma mensagem repetidas vezes em curto intervalo (padrão: 3 vezes em 10s), o envio é barrado com aviso amigável no canal do Sistema.
+- **Proteção contra Flood/Rajada**: Disparar mais de 6 mensagens em 3 segundos aciona uma pausa temporária de 4 segundos, preservando a saúde do servidor e evitando poluição visual.
+
+---
+
 ## 📁 Estrutura do Repositório
 
 ```text
@@ -281,6 +400,8 @@ NytheraSide/
 │   │   ├── NET_VIP.js          # Sistema de Roles e Privilégios VIP
 │   │   ├── NET_BattleBridge.js # Bridge de combate autoritativo
 │   │   ├── NET_MapBridge.js    # Sincronização fluida de mapa e outros players
+│   │   ├── NET_Events.js       # Sincronização autoritativa de eventos e NPCs
+│   │   ├── NET_Chat.js         # Chat MMORPG multicanal com 4 abas e balões
 │   │   ├── Nythera_HUD.js      # HUD compacta em pixel art
 │   │   └── Nythera_RegionControl.js # Sistema de encontros por região
 │   └── plugins.js              # Manifesto de ativação dos plugins
@@ -344,6 +465,8 @@ A comunicação em tempo real acontece via WebSocket no endpoint `/sync`:
 | `BATTLE_START_REQ` | `{ troopId?, enemyIds? }` | Solicita início de combate (suporta Tropa ou Inimigos dinâmicos). |
 | `BATTLE_COMMAND_REQ` | `{ command: { type, skillId, targetId } }` | Executa ação em batalha (ataque/skill/item). |
 | `BATTLE_SET_AUTO_REQ` | `{ isAuto }` | Alterna modo de combate automático controlado por IA. |
+| `EVENT_SYNC_REQ` | `{ mapId, eventId, choices }` | Envia escolhas de evento para validação e concessão de recompensas. |
+| `CHAT_MSG_REQ` | `{ channel, message, target? }` | Envia mensagem (`local`, `global`, `whisper` ou `system`). |
 
 ### Servidor ➔ Cliente (Payloads)
 
@@ -353,6 +476,7 @@ A comunicação em tempo real acontece via WebSocket no endpoint `/sync`:
 | `CMD_VIP_RES` | `{ success, role, isVip, vipUntil, message }` | Confirmação da alteração de status VIP com dias restantes. |
 | `MAP_UPDATE_RES` | `{ players: [...] }` | Snapshot contínuo das posições de todos os jogadores no mapa. |
 | `BATTLE_UPDATE_RES` | `{ state, events: [...] }` | Estado do combate e fila visual de animações (dano, heal, vitória). |
+| `CHAT_MSG_RES` | `{ channel, characterId?, sender, role, message, target? }` | Mensagem de chat recebida (para aba e/ou balão de fala). |
 
 ---
 

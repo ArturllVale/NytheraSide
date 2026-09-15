@@ -1,0 +1,23 @@
+{
+  "$schema": "Configurações de Filtro de Chat e Anti-Flood do NytheraSide",
+  "bannedWords": [
+    "hack",
+    "cheat",
+    "bot",
+    "exploits",
+    "palavrao1",
+    "palavrao2"
+  ],
+  "filterMode": "censor",
+  "censorReplacement": "***",
+  "repeatMessage": {
+    "maxRepeats": 3,
+    "windowSeconds": 10,
+    "cooldownSeconds": 5
+  },
+  "flood": {
+    "maxBurst": 6,
+    "windowSeconds": 3,
+    "cooldownSeconds": 4
+  }
+}
